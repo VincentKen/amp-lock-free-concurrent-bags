@@ -1,10 +1,10 @@
 NAME = library
 
-CC ?= gcc
+CC := g++
 RM ?= @rm
 MKDIR ?= @mkdir
 
-CFLAGS := -O3 -Wall -Wextra -fopenmp
+CFLAGS := -std=c++1z -Wall -Wextra -fopenmp
 
 SRC_DIR = src
 BUILD_DIR = build
@@ -24,18 +24,19 @@ $(DATA_DIR):
 $(BUILD_DIR):
 	@echo "Creating build directory: $(BUILD_DIR)"
 	$(MKDIR) $(BUILD_DIR)
+	$(MKDIR) $(BUILD_DIR)/src
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+$(BUILD_DIR)/src/%.o: $(SRC_DIR)/%.cpp
 	@echo "Compiling $<"
-	$(CC) $(CFLAGS) -fPIC -I$(INCLUDES) -c -o $@ $<
+	$(CC) $(CFLAGS) -fPIC -I$(INCLUDES) -c -o $@ $< -lstdc++
 
-$(NAME): $(foreach object,$(OBJECTS),$(BUILD_DIR)/$(object))
+$(NAME): $(foreach object,$(OBJECTS),$(BUILD_DIR)/src/$(object))
 	@echo "Linking $(NAME)"
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o build/$@ $^
 
-$(NAME).so: $(foreach object,$(OBJECTS),$(BUILD_DIR)/$(object))
+$(NAME).so: $(foreach object,$(OBJECTS),$(BUILD_DIR)/src/$(object))
 	@echo "Linking $(NAME)"
-	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^ 
+	$(CC) $(CFLAGS) -fPIC -shared -o build/$@ $^ -lstdc++
 
 bench:
 	@echo "This could run a sophisticated benchmark"

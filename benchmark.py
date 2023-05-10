@@ -75,7 +75,7 @@ def benchmark():
     Requires the binary to also be present as a shared library.
     '''
     basedir = os.path.dirname(os.path.abspath(__file__))
-    binary = ctypes.CDLL( f"{basedir}/library.so" )
+    binary = ctypes.CDLL( f"{basedir}/build/library.so" )
     # Set the result type for each benchmark function
     binary.small_bench.restype = cBenchResult
 
