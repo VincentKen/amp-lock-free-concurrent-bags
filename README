@@ -1,7 +1,11 @@
-Bubblesort
+Project 7: Concurrent bags
 -------------------------------
 
-This example benchmarks bubblesort.
+Study and implement the bag data structure from Håkan Sundell, Anders Gidenstam, Marina Papatriantafilou, Philippas Tsigas: A lock-free algorithm for concurrent bags. SPAA 2011: 335-344.
+
+For baseline performance, compare against a simple (own)
+sequential implementation with locks on all operations.
+
 
   make small-bench
 
