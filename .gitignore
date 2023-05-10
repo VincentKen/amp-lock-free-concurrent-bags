@@ -1,0 +1,7 @@
+build/*
+data/*
+plots/*
+
+*.so
+
+!plots/avg_plot.tex
