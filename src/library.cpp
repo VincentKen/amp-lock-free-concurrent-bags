@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <omp.h>
 
+#include "lock_free_bag.h"
+
 /* These structs should to match the definition in benchmark.py
  */
 struct counters {
@@ -16,6 +18,7 @@ struct bench_result {
     struct counters reduced_counters;
 };
 
+
 struct counters random_bench1(int times, int seed) {
     int tid = omp_get_thread_num();
     printf("Thread %d started.\n", tid);
@@ -26,28 +29,9 @@ struct counters random_bench1(int times, int seed) {
     return data;
 }
 
-struct bench_result small_bench(int t, int len) {
+struct bench_result small_bench(int t) {
     struct bench_result result;
-    struct counters thread_data[t];
-    double tic, toc;
-
-    omp_set_num_threads(t);
-    tic = omp_get_wtime();
-    {
-        #pragma omp parallel for
-        for (int i=0; i<t; i++) {
-            thread_data[i] = random_bench1(len, i);
-        }
-    }
-    toc = omp_get_wtime();
-
-    for (int i=0; i<t; i++) {
-        result.reduced_counters.successful_lends += thread_data[i].successful_lends;
-        result.reduced_counters.failed_turns     += thread_data[i].failed_turns;
-    }
-
-    result.time = (toc - tic);
-
+    LockFreeBag bag(t);
     return result;
 }
 
@@ -57,9 +41,9 @@ struct bench_result small_bench(int t, int len) {
 int main(int argc, char * argv[]) {
     (void) argc;
     (void) argv;
-    small_bench(1, 10);
-    small_bench(2, 10);
-    small_bench(4, 10);
-    small_bench(8, 10);
-    small_bench(16, 10);
+    small_bench(1);
+    small_bench(2);
+    small_bench(4);
+    small_bench(8);
+    small_bench(16);
 }
