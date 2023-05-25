@@ -1,25 +1,25 @@
 #include <omp.h>
-#include "lock_free_bag_thread.h"
+#include "lock_based_bag_thread.h"
 
-class LockFreeBag {
+class LockBasedBag {
 //public:
-    LinkedList** block_array;
+    LinkedList_withLocks** block_array;
     int threads;
-    LockFreeBagThread *bags_array;
+    LockBasedBagThread *bags_array;
 public:
-    LockFreeBag(){};
+    LockBasedBag(){};
 
-    LockFreeBag(int threads) 
+    LockBasedBag(int threads) 
     {
         this->threads = threads;
-        this->block_array = new LinkedList *[threads];
-        bags_array = new LockFreeBagThread[threads];
+        this->block_array = new LinkedList_withLocks *[threads];
+        bags_array = new LockBasedBagThread[threads];
         omp_set_num_threads(threads);
         
         #pragma omp parallel for
         for (int i = 0; i < threads; i++) {
 		    //printf("init %d\n",i);
-           bags_array[i] = LockFreeBagThread(i, block_array, threads);
+           bags_array[i] = LockBasedBagThread(i, block_array, threads);
         }
         
         #pragma omp barrier
@@ -29,13 +29,11 @@ public:
         bags_array[thread_id].Add(item);
     }
 
-    data_object* TryRemoveAny(int thread_id){
+    data_object TryRemoveAny(int thread_id){
         return bags_array[thread_id].TryRemoveAny();
     }
 
-    int numberOfStealOps(int thread_id){
-        return bags_array[thread_id].getNumOfSteals();
-    }
+
 
 
 
