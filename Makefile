@@ -4,7 +4,7 @@ CC := g++
 RM ?= @rm
 MKDIR ?= @mkdir
 
-CFLAGS := -std=c++1z -Wall -Wextra -fopenmp
+CFLAGS := -std=c++1z -Wall -Wextra -fopenmp -g
 
 SRC_DIR = src
 BUILD_DIR = build
