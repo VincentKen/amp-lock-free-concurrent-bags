@@ -9,7 +9,7 @@
 
 struct benchmark_result small_bench(int t, int len) {
     lock_free_programs lock_free;
-    return lock_free.single_producer(t, len);
+    return lock_free.split_50_50(t, len);
 }
 
 // void printResults(int numOfThreads,int numElements,  benchmark_result result){
