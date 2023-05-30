@@ -1,8 +1,6 @@
 #include <omp.h>
 #include "LinkedList.h"
-
-
-//data_object NULL_Data_Object = data_object();
+#include "benchmark_data.h"
 
 class LockFreeBagThread {
 private:
@@ -14,8 +12,7 @@ private:
     int steal_head; // stealHead from the algorithm. Index of the element in the array of the stealBlock which this thread will steal next
     int id; // thread_id
     int steal_from_id;
-
-    int numOfStealOPs = 0;
+    benchmark_counters counters;
 public:
 
     LockFreeBagThread(){}
@@ -29,10 +26,7 @@ public:
         thread_block = block_list[id]->insert_node();
         thread_head = 0;
         steal_from_id = 0;
-        // Barrier to force OMP to start all threads at the same time
-        //printf("thread bag %d initialized. bagptr: %d\n",id,&block_list[id]);
-        //#pragma omp barrier
-
+        steal_head = 0;
     }
 
 //----------- debug methods---------------
@@ -46,84 +40,79 @@ public:
         thread_head = 0;
     }
 
-    int getNumOfSteals(){
-        return numOfStealOPs;
+    benchmark_counters GetCounters(){
+        return counters;
     }
 ///---------------------------------
 
-    void Add(int item) {
-        data_object* toAdd = new data_object(item);
+    void Add(data item) {
         if (thread_head == Node::block_size || block_list[id]->head == nullptr || thread_block->Mark1) {
-            thread_block = block_list[id]->insert_node(toAdd,0);
+            thread_block = block_list[id]->insert_node(item, 0);
             thread_head = 1;
         }else{
-            thread_block->data_array[thread_head] = toAdd;
+            thread_block->data_array[thread_head].store(item, WEAK_ORDER);
             thread_head++;
         }
+        counters.items_added++;
     }
 	
-    data_object* Steal(){
-        numOfStealOPs++;
-        int numOfTestedLists = 0;
-        while (true)
-        {
-            if(steal_block == nullptr){
-                steal_from_id = (steal_from_id + 1) % block_list_size;
-                steal_block = block_list[steal_from_id]->head;
+    data Steal(){
+        // if steal_block == nullptr this is the first time trying to steal so we need to set everything up and try to find a linkedlist
+        int rounds = 0;
+        while (steal_block == nullptr) {
+            steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
+            steal_from_id = (steal_from_id + 1) % block_list_size;
+            if (rounds >= 50*block_list_size) {
+                return empty_data_val;
+            }
+            rounds++;
+        }
+        int linked_lists_attempted = 0;
+        while (true) {
+            counters.attempted_steals++;
+            if (steal_head == Node::block_size) {
+                if (linked_lists_attempted == 50*block_list_size) return empty_data_val; // bag must be empty. TODO implement method from paper
+                steal_block = steal_block->next;
                 steal_head = 0;
-
-            }else if(steal_block->Mark1){
-                if(block_list[steal_from_id]->remove_node()){
-                    steal_block = block_list[steal_from_id]->head;
-                }else{
-                    steal_block = nullptr;
-                }
-                steal_head = 0;
-            }else{
-                if (steal_head >= Node::block_size)
-                {
-                    steal_block->setMark1();
-                }else{
-                    data_object *item = steal_block->getObjectAt(steal_head);
-                    if (item != NULL_Data_Object){
-                        return item;
-                    }else{
-                        steal_head++;
-                    }
+                if (steal_block == nullptr) { // reached end of of this linked list
+                    steal_from_id = (steal_from_id + 1) % block_list_size;
+                    steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
+                    linked_lists_attempted++;
                 }
             }
-            if (numOfTestedLists >= 2* block_list_size)  return NULL_Data_Object;
+            data item = steal_block->getDataAt(steal_head);
+            if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
+                counters.successful_steals++;
+                return item;
+            } else {
+                steal_head++;
+            }
 
-            numOfTestedLists++;                 
         }
     }
 
 
 
 
-    data_object* TryRemoveAny() {
+    data TryRemoveAny() {
 		while(true){
-            thread_head--;
+            counters.attempted_removes++;
             if (thread_head < 0){
-                thread_block->setMark1();
-                //printf("set Mark done %d\n",id);
-                //fflush(stdout);
-            }
-            if (thread_block->Mark1)
-            {
-                // remove unsuccessfull & last node 
-                if (!block_list[id]->remove_node() && block_list[id]->head.load(std::memory_order_relaxed)->next == nullptr){
-                        return Steal();
-                }else{
-                    thread_head = Node::block_size -1;
-                    thread_block = block_list[id]->head.load(std::memory_order_relaxed);
+                if (thread_block->next == nullptr) { // indicates it is last block in the linked list
+                    return Steal();
                 }
-                     
+                thread_block = thread_block->next;
+                thread_head = Node::block_size - 1;
             }
-            data_object *item = thread_block->getObjectAt(thread_head);
-			if (item->isValid()){
-				return item;
+
+            data item = thread_block->getDataAt(thread_head);
+            if (item != empty_data_val) { // the CAS already happened in getDataAt, only check if it was successful by comparing with empty_data_val
+                counters.successful_removes++;
+                return item;
+            } else {
+                thread_head--;
             }
+
 		}
 	}
 };

@@ -6,47 +6,15 @@
 #include <omp.h>
 
 #include "lock_free_programs.h"
-//#include "lock_based_programs.h"
 
-/* These structs should to match the definition in benchmark.py
-
-struct counters {
-    int failed_removes;
-    int successful_removes;
-};
-struct bench_result {
-    float time;
-    struct counters reduced_counters;
-};
-
-*/
-
-/*
-struct counters random_bench1(int times, int seed) {
-    int tid = omp_get_thread_num();
-    printf("Thread %d started.\n", tid);
-    // Barrier to force OMP to start all threads at the same time
-    #pragma omp barrier
-
-    struct counters data = {};
-    return data;
-}
-*/
-
-struct bench_result small_bench(int t, int len) {
-    
+struct benchmark_result small_bench(int t, int len) {
     lock_free_programs lock_free;
-    return lock_free.small_bench(t , len);
+    return lock_free.single_producer(t, len);
 }
 
-
-
-
-
-
-void printResults(int numOfThreads,int numElements,  bench_result result){
-    printf("NumOfThreads: %d, NumofElements %d, Time: %f, itemsAdded: %d, sucsessfullRemoves: %d, FaildRemoves: %d, stolenItems: %d\n", numOfThreads,numElements, result.time, result.reduced_counters.items_added, result.reduced_counters.successful_removes, result.reduced_counters.failed_removes, result.reduced_counters.items_stolen);
-}
+// void printResults(int numOfThreads,int numElements,  benchmark_result result){
+//     printf("NumOfThreads: %d, NumofElements %d, Time: %f, itemsAdded: %d, sucsessfullRemoves: %d, FaildRemoves: %d, stolenItems: %d\n", numOfThreads,numElements, result.time, result.reduced_counters.items_added, result.reduced_counters.successful_removes, result.reduced_counters.failed_removes, result.reduced_counters.items_stolen);
+// }
 
 /* main is not relevant for benchmark.py but necessary when run alone for
  * testing.
@@ -56,11 +24,10 @@ int main(int argc, char * argv[]) {
     (void) argv;
     
     int t = 8;
-    int numElements = 1000000;
-    bench_result test;
-
+    int numElements = 10000;
+    benchmark_result test;
     test = small_bench(t, numElements);
-    printResults(t,numElements,test);
+    // printResults(t,numElements,test);
 
 
     /*
