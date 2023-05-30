@@ -35,10 +35,8 @@ public:
         if (threads < 2) return results;
         LockFreeBag bag(threads);
 
-        std::atomic<bool> done = false;
-        int completed[threads] = {0}; // keeps track of how many items each thread has consumed
-        std::vector<int> consumed[threads]; // keeps track of WHICH items each thread has consumed
-        omp_set_num_threads(threads + 1); // we add one thread which checks if all elements have been consumed
+        std::atomic_int consumed = 0;
+        omp_set_num_threads(threads);
         float t = omp_get_wtime();
         #pragma omp parallel
         {
@@ -48,33 +46,23 @@ public:
                 for (int e = 0; e < elements; e++) {
                     bag.Add(id, e);
                 }
-            } else if (id == threads) { // last thread checks if everything has been consumed
-                while(!done) {
-                    int total = 0;
-                    for (int i = 0; i < threads; i++) {
-                        total+= completed[i];
-                    }
-                    if (total >= elements) {
-                        done = true;
-                    }
-                }
             } else { // code ran by the consumer threads
-                while (!done) {
+                while (consumed < elements) {
                     data item = bag.TryRemoveAny(id);
                     if (item != empty_data_val) {
-                        completed[id]++;
-                        consumed[id].emplace_back(item);
+                        consumed++;
                     }
                 }
             }
         }
         results.time = omp_get_wtime() - t;
         for (int i = 0; i < threads; i++) {
-            std::cout << "Thread " << i << " has consumed " << completed[i] << " items" << std::endl;
+            std::cout << "Thread " << i << " counters:" << std::endl;
             bag.GetCounters(i).print();
             results.add_results(bag.GetCounters(i));
         }
-        std::cout << "Benchmark took " << results.time << std::endl;
+        std::cout << "Consumed: " << consumed << std::endl;
+        std::cout << "Benchmark took " << results.time << " seconds" << std::endl;
         return results;
     }
 
@@ -98,7 +86,7 @@ public:
             int id = omp_get_thread_num();
             #pragma omp barrier
             if (id == 0) { // code ran by consumer
-                while (consumed != elements*(threads-1)) {
+                while (consumed < elements*(threads-1)) {
                     data item = bag.TryRemoveAny(id);
                     if (item != empty_data_val) {
                         consumed++;
@@ -116,6 +104,8 @@ public:
             bag.GetCounters(i).print();
             results.add_results(bag.GetCounters(i));
         }
+        std::cout << "Consumed: " << consumed << std::endl;
+        std::cout << "Benchmark took " << results.time << " seconds" << std::endl;
         return results;
     }
 
@@ -142,7 +132,7 @@ public:
                     bag.Add(id, e);
                 }
             } else { // consume
-                while (consumed != (threads/2)*elements) {
+                while (consumed < (threads/2)*elements) {
                     data item = bag.TryRemoveAny(id);
                     if (item != empty_data_val) {
                         consumed++;
@@ -158,6 +148,7 @@ public:
             results.add_results(bag.GetCounters(i));
         }
         std::cout << "Consumed: " << consumed << std::endl;
+        std::cout << "Benchmark took " << results.time << " seconds" << std::endl;
         return results;
     }
 };
