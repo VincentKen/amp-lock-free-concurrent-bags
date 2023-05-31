@@ -7,6 +7,8 @@
 
 #include "lock_free_programs.h"
 
+extern "C" { // extern C is needed to make the following data available in the shared library
+
 enum program {
     SINGLE_PRODUCER = 0,
     SINGLE_CONSUMER,
@@ -21,7 +23,7 @@ enum program {
  * @param elements  The amount of elements each producer in the respective benchmark should produce
  * @return Results from the benchmark 
  */
-struct benchmark_result small_bench(program p, int t, int elements) {
+struct benchmark_result small_bench(int t, program p, int elements) {
     switch (p) {
         case SINGLE_PRODUCER:
             return lock_free_programs::single_producer(t, elements);
@@ -35,6 +37,8 @@ struct benchmark_result small_bench(program p, int t, int elements) {
     return {};
 }
 
+}
+
 /** 
  * main is not relevant for benchmark.py but necessary when run alone for
  * testing.
@@ -46,16 +50,16 @@ int main(int argc, char * argv[]) {
     int threads = 8;
     int elements = 10000;
     benchmark_result results[4];
-    results[0] = small_bench(SINGLE_PRODUCER, threads, elements);
-    results[1] = small_bench(SINGLE_CONSUMER, threads, elements);
-    results[2] = small_bench(SPLIT_50_50, threads, elements);
-    results[3] = small_bench(PRODUCE_AND_CONSUME, threads, elements);
+    results[0] = small_bench(threads, SINGLE_PRODUCER, elements);
+    results[1] = small_bench(threads, SINGLE_CONSUMER, elements);
+    results[2] = small_bench(threads, SPLIT_50_50, elements);
+    results[3] = small_bench(threads, PRODUCE_AND_CONSUME, elements);
 
     for (int i = 0; i < 4; i++) {
         std::cout << "Benchmark: " << i+1 << std::endl
             << "Time: \t   " << results[i].time << " seconds" << std::endl
             << "Results:" << std::endl;
-        results[i].reduced_counters.print();
+        print_counters(results[i].reduced_counters);
 
     }
 }

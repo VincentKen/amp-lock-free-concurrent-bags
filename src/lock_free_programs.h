@@ -57,7 +57,7 @@ public:
         }
         results.time = omp_get_wtime() - t;
         for (int i = 0; i < threads; i++) {
-            results.add_results(bag.GetCounters(i));
+            add_results(&results, bag.GetCounters(i));
         }
         return results;
     }
@@ -97,7 +97,7 @@ public:
         }
         results.time = omp_get_wtime() - t;
         for (int i = 0; i < threads; i++) {
-            results.add_results(bag.GetCounters(i));
+            add_results(&results, bag.GetCounters(i));
         }
         return results;
     }
@@ -136,7 +136,7 @@ public:
         results.time = omp_get_wtime() - t;
 
         for (int i = 0; i < threads; i++) {
-            results.add_results(bag.GetCounters(i));
+            add_results(&results, bag.GetCounters(i));
         }
         return results;
     }
@@ -169,7 +169,7 @@ public:
         results.time = omp_get_wtime() - t;
 
         for (int i = 0; i < threads; i++) {
-            results.add_results(bag.GetCounters(i));
+            add_results(&results, bag.GetCounters(i));
         }
         return results;
     }
