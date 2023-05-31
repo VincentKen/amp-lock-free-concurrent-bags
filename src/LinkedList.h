@@ -9,7 +9,7 @@
 class Node
 {   
 public:
-    static const int block_size = 10;
+    static const int block_size = 9;
     atomic_data data_array[block_size];
     struct Node *next = nullptr;
     std::atomic_bool Mark1 = false;
@@ -26,8 +26,7 @@ public:
 
 
     data getDataAt(int pos){
-        data temp = data_array[pos].load(WEAK_ORDER);
-        
+        data temp = data_array[pos];
         if (std::atomic_compare_exchange_weak(&data_array[pos], &temp, empty_data_val)){
             return temp;
         }else{
