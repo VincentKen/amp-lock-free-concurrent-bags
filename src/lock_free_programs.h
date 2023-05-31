@@ -20,7 +20,7 @@ public:
      * 50% of threads will be produces and 50% will be consumers
      * Each producer only produces 1 item
      */
-    benchmark_result split_50_50_single(int threads) {
+    static benchmark_result split_50_50_single(int threads) {
         return split_50_50(threads, 1);
     }
 
@@ -30,7 +30,7 @@ public:
      * @param threads   The number of threads (must be >= 2)
      * @param elements  The number of elements to be produced by the producer 
      */
-    benchmark_result single_producer(int threads, int elements) {
+    static benchmark_result single_producer(int threads, int elements) {
         benchmark_result results;
         if (threads < 2) return results;
         LockFreeBag bag(threads);
@@ -57,12 +57,8 @@ public:
         }
         results.time = omp_get_wtime() - t;
         for (int i = 0; i < threads; i++) {
-            std::cout << "Thread " << i << " counters:" << std::endl;
-            bag.GetCounters(i).print();
             results.add_results(bag.GetCounters(i));
         }
-        std::cout << "Consumed: " << consumed << std::endl;
-        std::cout << "Benchmark took " << results.time << " seconds" << std::endl;
         return results;
     }
 
@@ -73,7 +69,7 @@ public:
      * @param threads   The number of threads (must be >= 2)
      * @param elements  The number of elements to be produced by each producer 
      */
-    benchmark_result single_consumer(int threads, int elements) {
+    static benchmark_result single_consumer(int threads, int elements) {
         benchmark_result results;
         if (threads < 2) return results;
         LockFreeBag bag(threads);
@@ -101,11 +97,8 @@ public:
         }
         results.time = omp_get_wtime() - t;
         for (int i = 0; i < threads; i++) {
-            bag.GetCounters(i).print();
             results.add_results(bag.GetCounters(i));
         }
-        std::cout << "Consumed: " << consumed << std::endl;
-        std::cout << "Benchmark took " << results.time << " seconds" << std::endl;
         return results;
     }
 
@@ -114,7 +107,7 @@ public:
      * Each producer will produce @p elements
      * The benchmark is over once @p elements * ( @p threads / 2 ) elements have been consumed
      */
-    benchmark_result split_50_50(int threads, int elements) {
+    static benchmark_result split_50_50(int threads, int elements) {
         benchmark_result results;
         if (threads % 2 != 0) threads--; // make sure there is an even amount of threads
         if (threads <= 0) return results;
@@ -143,12 +136,8 @@ public:
         results.time = omp_get_wtime() - t;
 
         for (int i = 0; i < threads; i++) {
-            std::cout << "Thread " << i << " counters:" << std::endl;
-            bag.GetCounters(i).print();
             results.add_results(bag.GetCounters(i));
         }
-        std::cout << "Consumed: " << consumed << std::endl;
-        std::cout << "Benchmark took " << results.time << " seconds" << std::endl;
         return results;
     }
 };
