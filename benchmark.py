@@ -6,15 +6,20 @@ class cBenchCounters(ctypes.Structure):
     '''
     This has to match the returned struct in library.c
     '''
-    _fields_ = [ ("failed_turns", ctypes.c_int),
-                 ("successful_lends", ctypes.c_int) ]
+    _fields_ = [ 
+                ("attempted_removes", ctypes.c_int),
+                ("successful_removes", ctypes.c_int),
+                ("attempted_steals", ctypes.c_int),
+                ("successful_steals", ctypes.c_int),
+                ("items_added", ctypes.c_int)
+               ]
 
 class cBenchResult(ctypes.Structure):
     '''
     This has to match the returned struct in library.c
     '''
     _fields_ = [ ("time", ctypes.c_float),
-                 ("counters", cBenchCounters) ]
+                 ("reduced_counters", cBenchCounters) ]
 
 class Benchmark:
     '''
@@ -49,6 +54,7 @@ class Benchmark:
             tmp = []
             for r in range(0, self.repetitions_per_point):
                 result = self.bench_function( x, *self.parameters ).time*1000
+                # result = self.bench_function(1, 1, 1)
                 tmp.append( result )
             self.data[x] = tmp
 
@@ -87,16 +93,20 @@ def benchmark():
     # just one parameter, we cannot write (1000) because that would not parse
     # as a tuple, instead python understands a trailing comma as a tuple with
     # just one entry.
-    smallbench_10 = Benchmark(binary.small_bench, (10,), 3,
-                              num_threads, basedir, "smallbench_10")
+    smallbench_single_producer = Benchmark(binary.small_bench, (0, 10000), 3, num_threads, basedir, "single_producer")
+    smallbench_single_consumer = Benchmark(binary.small_bench, (1, 10000), 3, num_threads, basedir, "single_consumer")
+    smallbench_50_50 = Benchmark(binary.small_bench, (2, 10000), 3, num_threads, basedir, "split_50_50")
+    smallbench_produce_and_consume = Benchmark(binary.small_bench, (3, 10000), 3, num_threads, basedir, "produce_and_consume")
 
-    smallbench_100 = Benchmark(binary.small_bench, (100,), 3,
-                               num_threads, basedir, "smallbench_100")
+    smallbench_single_producer.run()
+    smallbench_single_producer.write_avg_data()
+    smallbench_single_consumer.run()
+    smallbench_single_consumer.write_avg_data()
+    smallbench_50_50.run()
+    smallbench_50_50.write_avg_data()
+    smallbench_produce_and_consume.run()
+    smallbench_produce_and_consume.write_avg_data()
 
-    smallbench_10.run()
-    smallbench_10.write_avg_data()
-    smallbench_100.run()
-    smallbench_100.write_avg_data()
 
 if __name__ == "__main__":
     benchmark()
