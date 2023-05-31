@@ -140,4 +140,37 @@ public:
         }
         return results;
     }
+
+    static benchmark_result produce_and_consume(int threads, int elements) {
+        benchmark_result results;
+        if (threads <= 0) return results;
+
+        LockFreeBag bag(threads);
+        std::atomic_int consumed = 0;
+
+        omp_set_num_threads(threads);
+        float t = omp_get_wtime();
+        #pragma omp parallel
+        {
+            int id = omp_get_thread_num();
+            #pragma omp barrier
+            // first let every thread produce
+            for (int e = 0; e < elements; e++) {
+                bag.Add(id, e);
+            }
+            // then consume
+            while (consumed < threads*elements) {
+                data item = bag.TryRemoveAny(id);
+                if (item != empty_data_val) {
+                    consumed++;
+                }
+            }
+        }
+        results.time = omp_get_wtime() - t;
+
+        for (int i = 0; i < threads; i++) {
+            results.add_results(bag.GetCounters(i));
+        }
+        return results;
+    }
 };
