@@ -13,12 +13,11 @@ INCLUDES = inc
 
 OBJECTS = $(NAME).o
 
+all: $(BUILD_DIR) $(NAME) $(NAME).so
+	@echo "Built $(NAME)"
 
 debug: CFLAGS += -DDEBUG -g
 debug: all
-
-all: $(BUILD_DIR) $(NAME) $(NAME).so
-	@echo "Built $(NAME)"
 
 $(DATA_DIR):
 	@echo "Creating data directory: $(DATA_DIR)"
