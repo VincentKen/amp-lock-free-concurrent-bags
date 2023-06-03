@@ -23,10 +23,32 @@
       % \addlegendentry{Single Consumer}
 
       \addplot table {\DATAPATH/avg/split_50_50_time.data};
-      \addlegendentry{Split 50\% 50\%}
+      \addlegendentry{Split 50\% 50\% (Lock free)}
+
+      \addplot table {\DATAPATH/avg/split_50_50_lock_based_time.data};
+      \addlegendentry{Split 50\% 50\% (With locks)}
+
+    \end{axis}
+  \end{tikzpicture}
+
+  \begin{tikzpicture}
+    \begin{axis}[title={Time per benchmark},              % Title of the graph
+                 xtick={2,4,8,16,32,64,128,256},  % The ticks on the x-axis
+                 xlabel={number of threads},        % Label of the x-axis
+                 ylabel={time in [ms]},             % Label of the y-axis
+                 legend style={
+                   at={(1.05,0.95)},                % Position of the legend anchor
+                   anchor=north west                % The legend anchor
+                 }]
+
+      % Each graph is added via \addplot and a .data file, and
+      % add a legend entry for the previous graph.
 
       \addplot table {\DATAPATH/avg/produce_and_consume_time.data};
-      \addlegendentry{Produce and Consume}
+      \addlegendentry{Produce and Consume (Lock free)}
+
+      \addplot table {\DATAPATH/avg/produce_and_consume_lock_based_time.data};
+      \addlegendentry{Produce and Consume (With locks)}
 
     \end{axis}
   \end{tikzpicture}

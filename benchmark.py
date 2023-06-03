@@ -21,6 +21,9 @@ class cBenchResult(ctypes.Structure):
     _fields_ = [ ("time", ctypes.c_float),
                  ("reduced_counters", cBenchCounters) ]
 
+class cLockBenchResult(ctypes.Structure):
+    _fields_ = [ ("time", ctypes.c_float) ]
+
 class Benchmark:
     '''
     Class representing a benchmark. It assumes any benchmark sweeps over some
@@ -30,14 +33,14 @@ class Benchmark:
     - average over the results.
     '''
     def __init__(self, bench_function, parameters,
-                 repetitions_per_point, xrange, basedir, name):
+                 repetitions_per_point, xrange, basedir, name, lock_based = False):
         self.bench_function = bench_function
         self.parameters = parameters
         self.repetitions_per_point = repetitions_per_point
         self.xrange = xrange
         self.basedir = basedir
         self.name = name
-
+        self.lock_based = lock_based
         self.data = {}
         self.succ_data = {}
         self.now = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
@@ -58,10 +61,12 @@ class Benchmark:
                 results = self.bench_function( x, *self.parameters )
                 result = results.time*1000
                 tmp1.append( result )
-                succ = results.reduced_counters.successful_removes+results.reduced_counters.successful_steals+results.reduced_counters.items_added
-                tmp2.append( succ/result )
+                if not self.lock_based:
+                    succ = results.reduced_counters.successful_removes+results.reduced_counters.successful_steals+results.reduced_counters.items_added
+                    tmp2.append( succ/result )
+                    self.succ_data[x] = tmp2
             self.data[x] = tmp1
-            self.succ_data[x] = tmp2
+            
 
     def write_avg_data(self):
         '''
@@ -82,11 +87,13 @@ class Benchmark:
             datafile.write(f"x datapoint\n")
             for x, box in self.data.items():
                 datafile.write(f"{x} {sum(box)/len(box)}\n")
-        with open(f"{self.basedir}/data/{self.now}/avg/{self.name}_success.data", "w")\
-                as datafile:
-            datafile.write(f"x datapoint\n")
-            for x, box in self.succ_data.items():
-                datafile.write(f"{x} {sum(box)/len(box)}\n")
+
+        if not self.lock_based:
+            with open(f"{self.basedir}/data/{self.now}/avg/{self.name}_success.data", "w")\
+                    as datafile:
+                datafile.write(f"x datapoint\n")
+                for x, box in self.succ_data.items():
+                    datafile.write(f"{x} {sum(box)/len(box)}\n")
 
 def benchmark():
     '''
@@ -96,20 +103,23 @@ def benchmark():
     binary = ctypes.CDLL( f"{basedir}/build/library.so" )
     # Set the result type for each benchmark function
     binary.small_bench.restype = cBenchResult
-
+    binary.small_lock_based_bench.restype = cLockBenchResult
     # The number of threads. This is the x-axis in the benchmark, i.e., the
     # parameter that is 'sweeped' over.
-    num_threads = [2,4,8,16]#,32,64,128,256]
+    num_threads = [2,4,8,16, 32]#,32,64,128,256]
 
     # Parameters for the benchmark are passed in a tuple, here (1000,). To pass
     # just one parameter, we cannot write (1000) because that would not parse
     # as a tuple, instead python understands a trailing comma as a tuple with
     # just one entry.
-    elements = 100000
+    elements = 1000000
     # smallbench_single_producer = Benchmark(binary.small_bench, (0, elements), 3, num_threads, basedir, "single_producer")
     # smallbench_single_consumer = Benchmark(binary.small_bench, (1, elements), 3, num_threads, basedir, "single_consumer")
     smallbench_50_50 = Benchmark(binary.small_bench, (2, elements), 3, num_threads, basedir, "split_50_50")
-    smallbench_produce_and_consume = Benchmark(binary.small_bench, (3, elements), 3, num_threads, basedir, "produce_and_consume")
+    smallbench_produce_and_consume = Benchmark(binary.small_bench, (3, elements), 2, num_threads, basedir, "produce_and_consume")
+
+    lock_based_sb_50_50 = Benchmark(binary.small_lock_based_bench, (2, elements), 3, num_threads, basedir, "split_50_50_lock_based", True)
+    lock_based_sb_produce_and_consume = Benchmark(binary.small_lock_based_bench, (3, elements), 2, num_threads, basedir, "produce_and_consume_lock_based", True)
 
     # smallbench_single_producer.run()
     # smallbench_single_producer.write_avg_data()
@@ -119,7 +129,10 @@ def benchmark():
     smallbench_50_50.write_avg_data()
     smallbench_produce_and_consume.run()
     smallbench_produce_and_consume.write_avg_data()
-
+    lock_based_sb_50_50.run()
+    lock_based_sb_50_50.write_avg_data()
+    lock_based_sb_produce_and_consume.run()
+    lock_based_sb_produce_and_consume.write_avg_data()
 
 if __name__ == "__main__":
     benchmark()
