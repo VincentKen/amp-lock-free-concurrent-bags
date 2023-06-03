@@ -160,10 +160,13 @@ public:
         for (int i = 0; i < threads; i++) {
             add_results(&results, bag.GetCounters(i));
             #ifdef DEBUG
-                std::cout << "Results from Thread: " << i << std::endl;
-                print_counters(bag.GetCounters(i));
+                // std::cout << "Results from Thread: " << i << std::endl;
+                // print_counters(bag.GetCounters(i));
             #endif
         }
+        #ifdef DEBUG
+        std::cout << "Benchmark ran in " << results.time << " seconds" << std::endl;
+        #endif
         return results;
     }
 
@@ -208,8 +211,8 @@ public:
         for (int i = 0; i < threads; i++) {
             add_results(&results, bag.GetCounters(i));
             #ifdef DEBUG
-                std::cout << "Results from Thread: " << i << std::endl;
-                print_counters(bag.GetCounters(i));
+                // std::cout << "Results from Thread: " << i << std::endl;
+                // print_counters(bag.GetCounters(i));
             #endif
         }
         return results;

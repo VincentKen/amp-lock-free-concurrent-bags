@@ -1,146 +1,93 @@
 #include <omp.h>
-#include "LinkedList_Locks.h"
-
-
-//data_object NULL_Data_Object = data_object();
+#include "LinkedList.h"
+#include "benchmark_data.h"
 
 class LockBasedBagThread {
 private:
-    LinkedList_withLocks** block_list; // pointer to array of the linked list so this thread can access other blocks for stealing
+    LockBasedLinkedList** block_list; // pointer to array of the linked list so this thread can access other blocks for stealing
     int block_list_size;
-    LinkedList_withLocks::Node* thread_block; // threadBlock from the algorithm from the paper. Points to current block containing the array the thread is working on
-    LinkedList_withLocks::Node* steal_block;  // stealBlock from the algorithm. Points to the current block containing the array this thread is stealing from
+    LockBasedNode* thread_block; // threadBlock from the algorithm from the paper. Points to current block containing the array the thread is working on
+    LockBasedNode* steal_block = nullptr;  // stealBlock from the algorithm. Points to the current block containing the array this thread is stealing from
     int thread_head; // threadHead from the algorithm. Index of the element in the array of the block where this thread will place data next
     int steal_head; // stealHead from the algorithm. Index of the element in the array of the stealBlock which this thread will steal next
     int id; // thread_id
     int steal_from_id;
 public:
-
     LockBasedBagThread(){}
 
-
-    LockBasedBagThread(int id, LinkedList_withLocks** block_list, int block_list_size) {
+    LockBasedBagThread(int id, LockBasedLinkedList** block_list, int block_list_size) {
         this->id = id;
         this->block_list = block_list;
         this->block_list_size = block_list_size;
-        block_list[id] = new LinkedList_withLocks();
-        thread_block = block_list[id]->insert_node();
+        block_list[id] = new LockBasedLinkedList();
+        thread_block = block_list[id]->insert_node();        
         thread_head = 0;
         steal_from_id = 0;
-        // Barrier to force OMP to start all threads at the same time
-        //printf("thread bag %d initialized. bagptr: %d\n",id,&block_list[id]);
-        //#pragma omp barrier
+        steal_head = 0;
     }
 
-//----------- debug methods---------------
-    void printLinkedList(){
-        printf("printList from thread %d:\n",id);
-        block_list[id]->printLinkedList();
-        
-    }
-    void insertNode(){
-        thread_block = block_list[id]->insert_node();
-        thread_head = 0;
-    }
-///---------------------------------
-
-    void Add(int item) {
-        block_list[id]->lock_list();
-        if (thread_head == LinkedList_withLocks::Node::block_size || block_list[id]->head == nullptr) {
-            thread_block = block_list[id]->insert_node();
-            thread_head = 0;
+    void Add(data item) {
+        if (thread_head == LockBasedNode::block_size || block_list[id]->head == nullptr) {
+            thread_block = block_list[id]->insert_node(item, 0);
+            thread_head = 1;
+        }else{
+            thread_block->set(thread_head, item);
+            thread_head++;
         }
-        data_object toAdd = data_object(item);
-        thread_block->data_array[thread_head] = toAdd;
-        block_list[id]->unlock_list();
-        thread_head++;
     }
 	
-    data_object Steal(){
-        while (true)
-        {
-            //printf("stealing from: %d, header: %d\n",steal_from_id, steal_head);
-
-            int stepsInLoop = 0;
-            while (steal_block == nullptr)
-            {
+    data Steal(){
+        // if steal_block == nullptr this is the first time trying to steal so we need to set everything up and try to find a linkedlist
+        int rounds = 0;
+        while (steal_block == nullptr) {
+            steal_block = block_list[steal_from_id]->head;
+            steal_from_id = (steal_from_id + 1) % block_list_size;
+            if (rounds >= 50*block_list_size) {
+                return empty_data_val;
+            }
+            rounds++;
+        }
+        int linked_lists_attempted = 0;
+        while (true) {
+            if (steal_head == LockBasedNode::block_size) {
+                if (linked_lists_attempted == 50*block_list_size) return empty_data_val; // bag must be empty. TODO implement method from paper
+                steal_block = steal_block->next;
                 steal_head = 0;
-                steal_from_id = (steal_from_id + 1) % block_list_size;
-                steal_block = block_list[steal_from_id]->head;
-                stepsInLoop++;
-                if (stepsInLoop > block_list_size)
-                {
-                    return NULL_Data_Object;
-                }
-                
-            } 
-            block_list[steal_from_id]->lock_list();
-            if (steal_head >= LinkedList_withLocks::Node::block_size)
-            {
-                steal_block = block_list[steal_from_id]->remove_node();
-                steal_head = 0;
-            }else{
-                data_object item;
-                //#pragma omp atomic capture
-                item = steal_block->data_array[steal_head];
-                steal_block->data_array[steal_head] = NULL_Data_Object;
-                
-                if (item.isValid()){
-                    block_list[steal_from_id]->unlock_list();		
-                    return item;
-                }else{
-                    steal_head++;
+                if (steal_block == nullptr) { // reached end of of this linked list
+                    steal_from_id = (steal_from_id + 1) % block_list_size;
+                    steal_block = block_list[steal_from_id]->head;
+                    linked_lists_attempted++;
                 }
             }
-            block_list[steal_from_id]->unlock_list();
-            
+            data item = steal_block->get(steal_head);
+            if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
+                return item;
+            } else {
+                steal_head++;
+            }
         }
-        
-        
-        
-       
-        
     }
 
-    data_object TryRemoveAny() {
+
+
+
+    data TryRemoveAny() {
 		while(true){
-            // could check for an element outsid the node array
-            if (thread_head >= LinkedList_withLocks::Node::block_size)
-            {
+            if (thread_head < 0){
+                if (thread_block->next == nullptr) { // indicates it is last block in the linked list
+                    return Steal();
+                }
+                thread_block = thread_block->next;
+                thread_head = LockBasedNode::block_size - 1;
+            }
+
+            data item = thread_block->get(thread_head);
+            if (item != empty_data_val) { // the CAS already happened in getDataAt, only check if it was successful by comparing with empty_data_val
+                return item;
+            } else {
                 thread_head--;
             }
 
-            if(thread_block == nullptr){ //steal
-                //printf("steal Mode Thread %d\n",id);
-                return Steal();
-            }
-
-			if (thread_head < 0){	//block is empty
-                block_list[id]->lock_list();
-				thread_block = block_list[id]->remove_node();
-                block_list[id]->unlock_list();
-
-				if(thread_block == nullptr){	//is the last block, local thread list is empty
-					//steal
-                    return Steal();
-				}
-                thread_head = LinkedList_withLocks::Node::block_size -1;
-
-			}
-			
-			data_object item;
-			
-            block_list[id]->lock_list();
-            item = thread_block->data_array[thread_head];
-            thread_block->data_array[thread_head] = NULL_Data_Object;
-		
-			if (item.isValid()){		//check if a data item is at that position, if yes try swap
-                block_list[id]->unlock_list();
-				return item;
-			}else{
-				thread_head--;
-			}
-			block_list[id]->unlock_list();
 		}
 	}
 };

@@ -6,6 +6,7 @@
 #include <omp.h>
 
 #include "lock_free_programs.h"
+#include "lock_based_programs.h"
 
 extern "C" { // extern C is needed to make the following data available in the shared library
 
@@ -37,6 +38,23 @@ struct benchmark_result small_bench(int t, program p, int elements) {
     return {};
 }
 
+/**
+ * 
+ */
+struct lock_benchmark_result small_lock_based_bench(int t, program p, int elements) {
+    switch (p) {
+        case SINGLE_PRODUCER:
+            return lock_based_programs::single_producer(t, elements);
+        case SINGLE_CONSUMER:
+            return lock_based_programs::single_consumer(t, elements);
+        case SPLIT_50_50:
+            return lock_based_programs::split_50_50(t, elements);
+        case PRODUCE_AND_CONSUME:
+            return lock_based_programs::produce_and_consume(t, elements);
+    }
+    return {};
+}
+
 }
 
 /** 
@@ -48,18 +66,22 @@ int main(int argc, char * argv[]) {
     (void) argv;
     
     int threads = 8;
-    int elements = 10000;
-    benchmark_result results[4];
-    results[0] = small_bench(threads, SINGLE_PRODUCER, elements);
-    results[1] = small_bench(threads, SINGLE_CONSUMER, elements);
-    results[2] = small_bench(threads, SPLIT_50_50, elements);
-    results[3] = small_bench(threads, PRODUCE_AND_CONSUME, elements);
+    int elements = 20;
+    // benchmark_result results[4];
+    // results[0] = small_bench(threads, SINGLE_PRODUCER, elements);
+    // results[1] = small_bench(threads, SINGLE_CONSUMER, elements);
+    // results[2] = small_bench(threads, SPLIT_50_50, elements);
+    // results[3] = small_bench(threads, PRODUCE_AND_CONSUME, elements);
 
-    for (int i = 0; i < 4; i++) {
-        std::cout << "Benchmark: " << i+1 << std::endl
-            << "Time: \t   " << results[i].time << " seconds" << std::endl
-            << "Results:" << std::endl;
-        print_counters(results[i].reduced_counters);
+    // for (int i = 0; i < 4; i++) {
+    //     std::cout << "Benchmark: " << i+1 << std::endl
+    //         << "Time: \t   " << results[i].time << " seconds" << std::endl
+    //         << "Results:" << std::endl;
+    //     print_counters(results[i].reduced_counters);
 
-    }
+    // }
+
+    lock_benchmark_result result = small_lock_based_bench(threads, SPLIT_50_50, elements);
+    benchmark_result result2 = small_bench(threads, SPLIT_50_50, elements);
+    std::cout << "Benchmark took " << result.time << " seconds" << std::endl;
 }

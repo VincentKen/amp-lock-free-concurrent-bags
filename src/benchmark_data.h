@@ -1,3 +1,5 @@
+#ifndef _BENCHMARK_DATA_
+#define _BENCHMARK_DATA_
 #include <stdio.h>
 
 extern "C" {
@@ -40,3 +42,12 @@ void add_results(benchmark_result *res, benchmark_counters others) {
     res->reduced_counters.successful_steals += others.successful_steals;
     res->reduced_counters.items_added += others.items_added;
 }
+
+extern "C" {
+
+struct lock_benchmark_result {
+    float time;
+};
+
+}
+#endif

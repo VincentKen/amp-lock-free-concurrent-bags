@@ -3,7 +3,7 @@
 
 class LockFreeBag {
 private:
-    LinkedList** block_array;
+    LockFreeLinkedList** block_array;
     int threads;
     LockFreeBagThread *bags_array;
 public:
@@ -12,7 +12,7 @@ public:
     LockFreeBag(int threads) 
     {
         this->threads = threads;
-        this->block_array = new LinkedList *[threads];
+        this->block_array = new LockFreeLinkedList *[threads];
         bags_array = new LockFreeBagThread[threads];
         
         for (int i = 0; i < threads; i++) {
@@ -31,19 +31,6 @@ public:
     benchmark_counters GetCounters(int thread_id){
         return bags_array[thread_id].GetCounters();
     }
-
-
-
-//----------- debug methods---------------
-    void insertNodeToLinkedList(int thread_id){
-        bags_array[thread_id].insertNode();
-    }
-
-    void printLinkedListFromTread(int thread_id){
-        bags_array[thread_id].printLinkedList();
-    }
-///---------------------------------
-
 
 
 
