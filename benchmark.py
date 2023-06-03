@@ -39,7 +39,8 @@ class Benchmark:
         self.name = name
 
         self.data = {}
-        self.now = None
+        self.succ_data = {}
+        self.now = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
     def run(self):
         '''
@@ -47,16 +48,20 @@ class Benchmark:
         repetitions_per_point data points and writes them back to the data
         dictionary to be processed later.
         '''
-        self.now = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        print(f"Starting Benchmark run at {self.now}")
+        t = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        print(f"Starting Benchmark {self.name} run at {t}")
 
         for x in self.xrange:
-            tmp = []
+            tmp1 = [] # time per benchmark
+            tmp2 = [] # successful operations per second
             for r in range(0, self.repetitions_per_point):
-                result = self.bench_function( x, *self.parameters ).time*1000
-                # result = self.bench_function(1, 1, 1)
-                tmp.append( result )
-            self.data[x] = tmp
+                results = self.bench_function( x, *self.parameters )
+                result = results.time*1000
+                tmp1.append( result )
+                succ = results.reduced_counters.successful_removes+results.reduced_counters.successful_steals+results.reduced_counters.items_added
+                tmp2.append( succ/result )
+            self.data[x] = tmp1
+            self.succ_data[x] = tmp2
 
     def write_avg_data(self):
         '''
@@ -66,14 +71,21 @@ class Benchmark:
         if self.now is None:
             raise Exception("Benchmark was not run. Run before writing data.")
 
+        print(f"Saving data to {self.basedir}/data/{self.now}/avg/{self.name}_time.data")
+
         try:
             os.makedirs(f"{self.basedir}/data/{self.now}/avg")
         except FileExistsError:
             pass
-        with open(f"{self.basedir}/data/{self.now}/avg/{self.name}.data", "w")\
+        with open(f"{self.basedir}/data/{self.now}/avg/{self.name}_time.data", "w")\
                 as datafile:
             datafile.write(f"x datapoint\n")
             for x, box in self.data.items():
+                datafile.write(f"{x} {sum(box)/len(box)}\n")
+        with open(f"{self.basedir}/data/{self.now}/avg/{self.name}_success.data", "w")\
+                as datafile:
+            datafile.write(f"x datapoint\n")
+            for x, box in self.succ_data.items():
                 datafile.write(f"{x} {sum(box)/len(box)}\n")
 
 def benchmark():
@@ -87,21 +99,22 @@ def benchmark():
 
     # The number of threads. This is the x-axis in the benchmark, i.e., the
     # parameter that is 'sweeped' over.
-    num_threads = [1,2,4,8,16]#,32,64,128,256]
+    num_threads = [2,4,8,16]#,32,64,128,256]
 
     # Parameters for the benchmark are passed in a tuple, here (1000,). To pass
     # just one parameter, we cannot write (1000) because that would not parse
     # as a tuple, instead python understands a trailing comma as a tuple with
     # just one entry.
-    smallbench_single_producer = Benchmark(binary.small_bench, (0, 10000), 3, num_threads, basedir, "single_producer")
-    smallbench_single_consumer = Benchmark(binary.small_bench, (1, 10000), 3, num_threads, basedir, "single_consumer")
-    smallbench_50_50 = Benchmark(binary.small_bench, (2, 10000), 3, num_threads, basedir, "split_50_50")
-    smallbench_produce_and_consume = Benchmark(binary.small_bench, (3, 10000), 3, num_threads, basedir, "produce_and_consume")
+    elements = 100000
+    # smallbench_single_producer = Benchmark(binary.small_bench, (0, elements), 3, num_threads, basedir, "single_producer")
+    # smallbench_single_consumer = Benchmark(binary.small_bench, (1, elements), 3, num_threads, basedir, "single_consumer")
+    smallbench_50_50 = Benchmark(binary.small_bench, (2, elements), 3, num_threads, basedir, "split_50_50")
+    smallbench_produce_and_consume = Benchmark(binary.small_bench, (3, elements), 3, num_threads, basedir, "produce_and_consume")
 
-    smallbench_single_producer.run()
-    smallbench_single_producer.write_avg_data()
-    smallbench_single_consumer.run()
-    smallbench_single_consumer.write_avg_data()
+    # smallbench_single_producer.run()
+    # smallbench_single_producer.write_avg_data()
+    # smallbench_single_consumer.run()
+    # smallbench_single_consumer.write_avg_data()
     smallbench_50_50.run()
     smallbench_50_50.write_avg_data()
     smallbench_produce_and_consume.run()
