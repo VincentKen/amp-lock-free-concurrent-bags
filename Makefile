@@ -4,7 +4,7 @@ CC := g++
 RM ?= @rm
 MKDIR ?= @mkdir
 
-CFLAGS := -std=c++1z -Wall -Wextra -fopenmp -g
+CFLAGS := -std=c++1z -Wall -Wextra -fopenmp
 
 SRC_DIR = src
 BUILD_DIR = build
@@ -13,6 +13,9 @@ INCLUDES = inc
 
 OBJECTS = $(NAME).o
 
+
+debug: CFLAGS += -DDEBUG -g
+debug: all
 
 all: $(BUILD_DIR) $(NAME) $(NAME).so
 	@echo "Built $(NAME)"
