@@ -1,6 +1,8 @@
 import ctypes
 import os
 import datetime
+import sys
+import getopt
 
 class cBenchCounters(ctypes.Structure):
     '''
@@ -43,7 +45,6 @@ class Benchmark:
         self.lock_based = lock_based
         self.data = {}
         self.succ_data = {}
-        self.now = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
     def run(self):
         '''
@@ -51,9 +52,11 @@ class Benchmark:
         repetitions_per_point data points and writes them back to the data
         dictionary to be processed later.
         '''
-        t = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        print(f"Starting Benchmark {self.name} run at {t}")
-
+        t = datetime.datetime.now()
+        tstr = t.strftime("%Y-%m-%dT%H:%M:%S")
+        print(f"Starting Benchmark {self.name} run at {tstr}")
+        self.now = t
+        
         for x in self.xrange:
             tmp1 = [] # time per benchmark
             tmp2 = [] # successful operations per second
@@ -66,6 +69,8 @@ class Benchmark:
                     tmp2.append( succ/result )
                     self.succ_data[x] = tmp2
             self.data[x] = tmp1
+        t = datetime.datetime.now()-t
+        print(f"Benchmark {self.name} took {t}")
             
 
     def write_avg_data(self):
@@ -76,63 +81,83 @@ class Benchmark:
         if self.now is None:
             raise Exception("Benchmark was not run. Run before writing data.")
 
-        print(f"Saving data to {self.basedir}/data/{self.now}/avg/{self.name}_time.data")
+        print(f"Saving data to {self.basedir}/avg/{self.name}_time.data")
 
         try:
-            os.makedirs(f"{self.basedir}/data/{self.now}/avg")
+            os.makedirs(f"{self.basedir}/avg")
         except FileExistsError:
             pass
-        with open(f"{self.basedir}/data/{self.now}/avg/{self.name}_time.data", "w")\
+        with open(f"{self.basedir}/avg/{self.name}_time.data", "w")\
                 as datafile:
             datafile.write(f"x datapoint\n")
             for x, box in self.data.items():
                 datafile.write(f"{x} {sum(box)/len(box)}\n")
 
         if not self.lock_based:
-            with open(f"{self.basedir}/data/{self.now}/avg/{self.name}_success.data", "w")\
+            print(f"Saving data to {self.basedir}/avg/{self.name}_success.data")
+            with open(f"{self.basedir}/avg/{self.name}_success.data", "w")\
                     as datafile:
                 datafile.write(f"x datapoint\n")
                 for x, box in self.succ_data.items():
                     datafile.write(f"{x} {sum(box)/len(box)}\n")
 
-def benchmark():
-    '''
-    Requires the binary to also be present as a shared library.
-    '''
+
+if __name__ == "__main__":
+    opts, args = getopt.getopt(sys.argv[1:], "d:p:i:s:l:e:")
+    d = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S") # Directory in /data where to store the results of the benchmark
+    p = "split_50_50" # The name of the program to run
+    i = 3 # Amount of iterations
+    s = "small" # Size of benchmark, either small or big. Determines whether benchmark will run on threads 2-16 or 2-128
+    l = False # Lock based. Determines whether to run the lock based version of the selected program
+    e = 10000 # Amount of elements to pass on to the program
+
+    programs = {
+        "single_producer"       : 0,
+        "single_consumer"       : 1,
+        "split_50_50"           : 2,
+        "produce_and_consume"   : 3
+    }
+
+    for opt, arg in opts:
+        if opt == "-d":
+            d = arg
+        if opt == "-p":
+            p = arg
+        if opt == "-i":
+            i = int(arg)
+        if opt == "-s":
+            s = arg.lower()
+        if opt == "-l":
+            if arg.lower() == "true":
+                l = True
+            if arg.lower() == "false":
+                l = False
+        if opt == "-e":
+            e = int(e)
+    
+    name = p
+    if l:
+        name = name + "_lock_based"
+    small_threads = [2, 4, 8, 16]
+    large_threads = small_threads + [32, 64, 128]
+
+    threads = small_threads
+    if s == "large":
+        threads = large_threads
+
     basedir = os.path.dirname(os.path.abspath(__file__))
     binary = ctypes.CDLL( f"{basedir}/build/library.so" )
     # Set the result type for each benchmark function
     binary.small_bench.restype = cBenchResult
     binary.small_lock_based_bench.restype = cLockBenchResult
-    # The number of threads. This is the x-axis in the benchmark, i.e., the
-    # parameter that is 'sweeped' over.
-    num_threads = [2,4,8,16, 32]#,32,64,128,256]
 
-    # Parameters for the benchmark are passed in a tuple, here (1000,). To pass
-    # just one parameter, we cannot write (1000) because that would not parse
-    # as a tuple, instead python understands a trailing comma as a tuple with
-    # just one entry.
-    elements = 1000000
-    # smallbench_single_producer = Benchmark(binary.small_bench, (0, elements), 3, num_threads, basedir, "single_producer")
-    # smallbench_single_consumer = Benchmark(binary.small_bench, (1, elements), 3, num_threads, basedir, "single_consumer")
-    smallbench_50_50 = Benchmark(binary.small_bench, (2, elements), 3, num_threads, basedir, "split_50_50")
-    smallbench_produce_and_consume = Benchmark(binary.small_bench, (3, elements), 2, num_threads, basedir, "produce_and_consume")
+    datadir = basedir + "/data/" + d
+    print("-----------------------------------------------------------------------------------")
+    print(f"Starting benchmark {name} with {e} elements, {i} iterations, and threads: {threads}")
+    print(f"Data will be saved in {datadir}")
 
-    lock_based_sb_50_50 = Benchmark(binary.small_lock_based_bench, (2, elements), 3, num_threads, basedir, "split_50_50_lock_based", True)
-    lock_based_sb_produce_and_consume = Benchmark(binary.small_lock_based_bench, (3, elements), 2, num_threads, basedir, "produce_and_consume_lock_based", True)
+    benchmark = Benchmark(binary.small_bench, (programs[p], e), i, threads, datadir, name, l)
+    benchmark.run()
+    benchmark.write_avg_data()
+    print("-----------------------------------------------------------------------------------")
 
-    # smallbench_single_producer.run()
-    # smallbench_single_producer.write_avg_data()
-    # smallbench_single_consumer.run()
-    # smallbench_single_consumer.write_avg_data()
-    smallbench_50_50.run()
-    smallbench_50_50.write_avg_data()
-    smallbench_produce_and_consume.run()
-    smallbench_produce_and_consume.write_avg_data()
-    lock_based_sb_50_50.run()
-    lock_based_sb_50_50.write_avg_data()
-    lock_based_sb_produce_and_consume.run()
-    lock_based_sb_produce_and_consume.write_avg_data()
-
-if __name__ == "__main__":
-    benchmark()

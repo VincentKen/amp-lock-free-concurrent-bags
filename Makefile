@@ -11,6 +11,7 @@ BUILD_DIR = build
 DATA_DIR = data
 INCLUDES = inc
 
+
 OBJECTS = $(NAME).o
 
 all: $(BUILD_DIR) $(NAME) $(NAME).so
@@ -40,12 +41,23 @@ $(NAME).so: $(foreach object,$(OBJECTS),$(BUILD_DIR)/src/$(object))
 	@echo "Linking $(NAME)"
 	$(CC) $(CFLAGS) -fPIC -shared -o build/$@ $^ -lstdc++
 
+BENCHMARK_DATA:= $(shell date '+%Y-%m-%d-%H:%M:%S')
+SMALL_BENCH_ELEMENTS:=1000
+LARGE_BENCH_ELEMENTS:=1000000
+
 bench:
-	@echo "This could run a sophisticated benchmark"
+	@echo "Running large benchmark ..."
+	@python benchmark.py -d $(BENCHMARK_DATA) -p split_50_50 -i 10 -s large -l false -e $(LARGE_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p split_50_50 -i 10 -s large -l true -e $(LARGE_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p produce_and_consume -i 10 -s large -l false -e $(LARGE_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p produce_and_consume -i 10 -s large -l true -e $(LARGE_BENCH_ELEMENTS)
 
 small-bench: $(BUILD_DIR) $(NAME).so $(DATA_DIR)
 	@echo "Running small-bench ..."
-	@python benchmark.py
+	@python benchmark.py -d $(BENCHMARK_DATA) -p split_50_50 -i 3 -s small -l false -e $(SMALL_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p split_50_50 -i 3 -s small -l true -e $(SMALL_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p produce_and_consume -i 3 -s small -l false -e $(SMALL_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p produce_and_consume -i 3 -s small -l true -e $(SMALL_BENCH_ELEMENTS)
 
 small-plot: 
 	@echo "Plotting small-bench results ..."
