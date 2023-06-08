@@ -35,19 +35,31 @@ public:
 
     void Add(data item) {
         //std::cout << id <<" add at " << thread_head << std::endl; 
-
-        if (thread_head == LockFreeNode::block_size || block_list[id]->head == nullptr || thread_block->Mark1) {
+        if (thread_head == LockFreeNode::block_size || block_list[id]->head == nullptr) {
             thread_block = block_list[id]->insert_node(item, 0);
             thread_head = 1;
-        }else{
-            thread_block->data_array[thread_head].store(item, WEAK_ORDER);
-            thread_head++;
-            if(thread_block->Mark1){
+        } else {
+            if (thread_block->set_adding()) {
+                thread_block->data_array[thread_head].store(item, WEAK_ORDER);
+                thread_block->set_none();
+            } else {
+                std::cout << "Failed to set adding, inserting a new node for item " << item << std::endl;
                 thread_block = block_list[id]->insert_node(item, 0);
                 thread_head = 1;
             }
-            
         }
+        // if (thread_head == LockFreeNode::block_size || block_list[id]->head == nullptr || thread_block->Mark1) {
+        //     thread_block = block_list[id]->insert_node(item, 0);
+        //     thread_head = 1;
+        // }else{
+        //     thread_block->data_array[thread_head].store(item, WEAK_ORDER);
+        //     thread_head++;
+        //     if(thread_block->Mark1){
+        //         thread_block = block_list[id]->insert_node(item, 0);
+        //         thread_head = 1;
+        //     }
+            
+        // }
         counters.items_added++;
     }
 	
@@ -65,28 +77,30 @@ public:
                 linked_lists_attempted++;
                 steal_head = 0;
                 if (linked_lists_attempted == block_list_size) return empty_data_val; 
-            }else if (steal_block->Mark1)
+            }else if (steal_block->is_deleted())
             {
                 //std::cout << "Delete stealing " << id << " from " << steal_from_id << std::endl;
                 if(block_list[steal_from_id]->deleteNode()){
-                    std::cout << "Delete stealing " << id << " from " << steal_from_id << " succsessfull" << std::endl;
+                    //std::cout << "Delete stealing " << id << " from " << steal_from_id << " succsessfull" << std::endl;
                     steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
                     steal_head = 0;
                 }else{
                     //std::cout << "Delete stealing " << id << " from " << steal_from_id << " failed" << std::endl;
-                    std::cout << id << " Going to next list. Attempts so far: " << linked_lists_attempted << "/" << block_list_size << std::endl;
+                    //std::cout << id << " Going to next list. Attempts so far: " << linked_lists_attempted << "/" << block_list_size << std::endl;
                     steal_block = nullptr;
                 }
                 
                 
             }else if (steal_head >= LockFreeNode::block_size) {
-                steal_block->setMark1();
+                if (!steal_block->set_deleting()) {
+                    steal_head = 0;
+                }
             
             }else{
                  data item = steal_block->getDataAt(steal_head);
                 if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
                     counters.successful_steals++;
-                    std::cout << "Steal from " << id << " of item from " << steal_from_id << " successful" << std::endl;
+                    //std::cout << "Steal from " << id << " of item from " << steal_from_id << " successful" << std::endl;
                     return item;
                 } else {
                     steal_head++;
@@ -103,21 +117,21 @@ public:
 		while(true){
             counters.attempted_removes++;
 
-            if (thread_head < 0 && thread_block->Mark1){
+            if (thread_head < 0 && thread_block->is_deleted()){
                 return Steal();
             }
 
             thread_head--;
             if (thread_head < 0){
-                thread_block->setMark1();
+                thread_block->set_deleting();
             }
 
-            if (thread_block->Mark1)
+            if (thread_block->is_deleted())
             {
                 //std::cout << "Delete " << id << " from it selve" << std::endl;
                 // remove unsuccessfull & last node 
                if (!block_list[id]->deleteNode() && block_list[id]->head.load(std::memory_order_relaxed)->next == nullptr){
-                    std::cout << " Thread " << id << " failed to delete from itself" << std::endl;
+                    //std::cout << " Thread " << id << " failed to delete from itself" << std::endl;
                     return Steal();
                 }else{
                     thread_head = LockFreeNode::block_size -1;

@@ -96,6 +96,9 @@ public:
 
 };
 
+int none = 0;
+int adding = 1;
+int deleting = 2;
 
 class LockFreeNode
 {   
@@ -104,7 +107,8 @@ public:
     atomic_data data_array[block_size];
     struct LockFreeNode *next = nullptr;
     struct LockFreeNode *prev = nullptr;
-    std::atomic_bool Mark1 = false;
+    std::atomic_int marks = none;
+
     LockFreeNode(){
         for (int i = 0; i < block_size; i++)
         {
@@ -112,9 +116,25 @@ public:
         }
     }
 
-    void setMark1(){
-        std::atomic_exchange(&Mark1, true);
+    bool set_none() {
+        marks = none;
+        return true;
     }
+
+    bool set_adding() {
+        return std::atomic_compare_exchange_weak(&marks, &none, adding);
+    }
+
+    bool set_deleting(){
+        return std::atomic_compare_exchange_weak(&marks, &none, deleting);
+    }
+
+    bool is_deleted(){
+        return marks == deleting;
+    }
+    // void setMark1(){
+    //     std::atomic_exchange(&Mark1, true);
+    // }
     
 
 
@@ -149,7 +169,7 @@ public:
 
         while (!std::atomic_compare_exchange_weak(&head, &new_node->next, new_node)){
             new_node->next = head;
-            std::cout << "insert new node, head: " << head << std::endl;
+            //std::cout << "insert new node, head: " << head << std::endl;
         }
         
         return head;
@@ -158,11 +178,13 @@ public:
     LockFreeNode * insert_node(data toInsert, int pos) {
         LockFreeNode *new_node = new LockFreeNode();
         new_node->data_array[pos].store(toInsert, WEAK_ORDER);
+       
+       
         
         new_node->next = head;
         while (!std::atomic_compare_exchange_weak(&head, &new_node->next, new_node)){
             new_node->next = head;
-            std::cout << "insert new node, head: " << head << std::endl;
+            //std::cout << "insert new node, head: " << head << std::endl;
         }
         
         return head;
@@ -185,7 +207,7 @@ public:
     bool deleteNode(){
         //std::cout << "Delete Node" << std::endl;
         LockFreeNode *headNode = head.load(WEAK_ORDER);
-        if (headNode->next == nullptr || !headNode->Mark1)
+        if (headNode->next == nullptr || !headNode->is_deleted())
         {
             return false;
         }
