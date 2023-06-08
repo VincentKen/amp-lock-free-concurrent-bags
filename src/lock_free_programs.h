@@ -80,7 +80,7 @@ public:
         if (threads < 2) return results;
         LockFreeBag bag(threads);
 
-        int consumed = 0;
+        std::atomic_int consumed = 0;
         int e_per_p = elements/(threads - 1); // the amount of elements each producer needs to produce
         elements = e_per_p*(threads - 1); // the new total amount of elements which will be produced, incase previous amount was not evenly divisable
         #ifdef DEBUG
@@ -146,11 +146,14 @@ public:
                 for (int e = 0; e < e_per_p; e++) {
                     bag.Add(id, e);
                 }
+                std::cout << "Thread " << id << " finished producing " << e_per_p << " elements" << std::endl;
             } else { // consume
                 while (consumed < elements) {
                     data item = bag.TryRemoveAny(id);
                     if (item != empty_data_val) {
                         consumed++;
+                    } else {
+                        std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
                     }
                 }
             }
@@ -197,12 +200,15 @@ public:
             // first let every thread produce
             for (int e = 0; e < e_per_p; e++) {
                 bag.Add(id, e);
+                std::cout << "Thread " << id << " finished producing " << e_per_p << " elements" << std::endl;
             }
             // then consume
             while (consumed < elements) {
                 data item = bag.TryRemoveAny(id);
                 if (item != empty_data_val) {
                     consumed++;
+                } else {
+                    std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
                 }
             }
         }

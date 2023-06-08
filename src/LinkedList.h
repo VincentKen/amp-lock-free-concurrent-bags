@@ -9,7 +9,7 @@
 #include "data_object.h"
 #include <atomic>
 
-static const int General_block_size = 32;
+static const int General_block_size = 9;
 
 class LockBasedNode
 {
@@ -19,6 +19,7 @@ public:
     static const int block_size = General_block_size;
     data data_array[block_size];
     struct LockBasedNode *next = nullptr;
+
     omp_lock_t lock;
     
 
@@ -102,6 +103,7 @@ public:
     static const int block_size = General_block_size;
     atomic_data data_array[block_size];
     struct LockFreeNode *next = nullptr;
+    struct LockFreeNode *prev = nullptr;
     std::atomic_bool Mark1 = false;
     LockFreeNode(){
         for (int i = 0; i < block_size; i++)
@@ -134,33 +136,61 @@ public:
         head = nullptr;
     }
 
-    std::atomic<LockFreeNode*> head = nullptr;
+    std::atomic<LockFreeNode*> head = new LockFreeNode;
+
 
     /**
      * Inserts new node to the end of the list and returns the pointer to that node 
      */
      LockFreeNode * insert_node() {
         LockFreeNode *new_node = new LockFreeNode();
+        //LockFreeNode *h = head.load(WEAK_ORDER);
         new_node->next = head;
+
         while (!std::atomic_compare_exchange_weak(&head, &new_node->next, new_node)){
             new_node->next = head;
+            std::cout << "insert new node, head: " << head << std::endl;
         }
         
         return head;
     }
 
-    
-
     LockFreeNode * insert_node(data toInsert, int pos) {
         LockFreeNode *new_node = new LockFreeNode();
         new_node->data_array[pos].store(toInsert, WEAK_ORDER);
-
+        
         new_node->next = head;
         while (!std::atomic_compare_exchange_weak(&head, &new_node->next, new_node)){
             new_node->next = head;
+            std::cout << "insert new node, head: " << head << std::endl;
         }
         
         return head;
+    }
+    
+/*
+    LockFreeNode * insert_node(LockFreeNode *currentNode, data toInsert, int pos) {
+        LockFreeNode *new_node = new LockFreeNode();
+        new_node->data_array[pos].store(toInsert, WEAK_ORDER);
+        
+        //new_node->next = head;
+        while (!std::atomic_compare_exchange_weak(currentNode->next, nullptr, new_node)){
+            currentNode = currentNode->next->load(WEAK_ORDER);
+            std::cout << "insert new node, head: " << head << std::endl;
+        }
+        
+        return head;
+    }
+*/
+    bool deleteNode(){
+        //std::cout << "Delete Node" << std::endl;
+        LockFreeNode *headNode = head.load(WEAK_ORDER);
+        if (headNode->next == nullptr || !headNode->Mark1)
+        {
+            return false;
+        }
+        return std::atomic_compare_exchange_weak(&head, &headNode, headNode->next);
+       
     }
 
 };
