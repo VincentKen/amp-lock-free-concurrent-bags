@@ -7,7 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-
+#include<unistd.h>  
 #include "lock_free_bag.h"
 
 class lock_free_programs
@@ -53,6 +53,8 @@ public:
                     data item = bag.TryRemoveAny(id);
                     if (item != empty_data_val) {
                         consumed++;
+                    }else{
+                        usleep(1);
                     }
                 }
             }
@@ -98,6 +100,8 @@ public:
                     data item = bag.TryRemoveAny(id);
                     if (item != empty_data_val) {
                         consumed++;
+                    }else{
+                        usleep(1);
                     }
                 }
                 
@@ -136,6 +140,7 @@ public:
             std::cout << "Split 50 50 with " << threads << " threads and " << elements << " elements" << std::endl;
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
+        bool finished[threads] = {false};
         omp_set_num_threads(threads);
         double t = omp_get_wtime();
         #pragma omp parallel
@@ -146,6 +151,7 @@ public:
                 for (int e = 0; e < e_per_p; e++) {
                     bag.Add(id, e);
                 }
+                finished[id] = true;
                 std::cout << "Thread " << id << " finished producing " << e_per_p << " elements" << std::endl;
             } else { // consume
                 while (consumed < elements) {
@@ -153,7 +159,15 @@ public:
                     if (item != empty_data_val) {
                         consumed++;
                     } else {
+                        usleep(1);
                         std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
+                        int finished_count = 0;
+                        for (int i = 0; i < threads; i++) {
+                            if (finished[i]) finished_count++;
+                        }
+                        if (finished_count == threads/2) {
+                            std::cout << "All producers are finished" << std::endl;
+                        }
                     }
                 }
             }
@@ -208,6 +222,7 @@ public:
                 if (item != empty_data_val) {
                     consumed++;
                 } else {
+                    usleep(1);
                     std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
                 }
             }
