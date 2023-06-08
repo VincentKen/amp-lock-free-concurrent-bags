@@ -66,7 +66,7 @@ int main(int argc, char * argv[]) {
     (void) argv;
     
     int threads = 8;
-    int elements = 20;
+    int elements = 10000;
     // benchmark_result results[4];
     // results[0] = small_bench(threads, SINGLE_PRODUCER, elements);
     // results[1] = small_bench(threads, SINGLE_CONSUMER, elements);
@@ -80,8 +80,28 @@ int main(int argc, char * argv[]) {
     //     print_counters(results[i].reduced_counters);
 
     // }
+    lock_benchmark_result result;
+    benchmark_result result2;
+    std::cout << "SINGLE_PRODUCER " <<std::endl;
+    //result = small_lock_based_bench(threads, SINGLE_PRODUCER, elements);
+     result2 = small_bench(threads, SINGLE_PRODUCER, elements);
+    //std::cout << "Benchmark took " << result.time << " seconds" << std::endl;
 
-    lock_benchmark_result result = small_lock_based_bench(threads, SPLIT_50_50, elements);
-    benchmark_result result2 = small_bench(threads, SPLIT_50_50, elements);
-    std::cout << "Benchmark took " << result.time << " seconds" << std::endl;
+
+    std::cout << "SINGLE_CONSUMER " <<std::endl;
+    // result = small_lock_based_bench(threads, SINGLE_CONSUMER, elements);
+     result2 = small_bench(threads, SINGLE_CONSUMER, elements);
+    ///std::cout << "Benchmark took " << result.time << " seconds" << std::endl;
+
+
+    std::cout << "SPLIT_50_50 " <<std::endl;
+    // result = small_lock_based_bench(threads, SPLIT_50_50, elements);
+     result2 = small_bench(threads, SPLIT_50_50, elements);
+    ///std::cout << "Benchmark took " << result.time << " seconds" << std::endl;
+
+
+    std::cout << "PRODUCE_AND_CONSUME " <<std::endl;
+    // result = small_lock_based_bench(threads, PRODUCE_AND_CONSUME, elements);
+     result2 = small_bench(threads, PRODUCE_AND_CONSUME, elements);
+    //std::cout << "Benchmark took " << result.time << " seconds" << std::endl;
 }

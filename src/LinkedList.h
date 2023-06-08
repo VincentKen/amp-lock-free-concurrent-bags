@@ -9,13 +9,18 @@
 #include "data_object.h"
 #include <atomic>
 
+static const int General_block_size = 32;
+
 class LockBasedNode
 {
+private:
+    bool Mark1 = false;
 public:
-    static const int block_size = 9;
+    static const int block_size = General_block_size;
     data data_array[block_size];
     struct LockBasedNode *next = nullptr;
     omp_lock_t lock;
+    
 
     LockBasedNode() {
         omp_init_lock(&lock);
@@ -23,6 +28,16 @@ public:
         {
             data_array[i] = empty_data_val;
         }
+    }
+    void setMark1(){
+        omp_set_lock(&lock);
+        Mark1 = true;
+        omp_unset_lock(&lock);
+    }
+
+    bool getMark1(){
+        return Mark1;
+        
     }
 
     data get(int pos){
@@ -51,6 +66,7 @@ public:
     }
 
     LockBasedNode* head = nullptr;
+    
 
     /**
      * Inserts new node to the end of the list and returns the pointer to that node 
@@ -83,7 +99,7 @@ public:
 class LockFreeNode
 {   
 public:
-    static const int block_size = 9;
+    static const int block_size = General_block_size;
     atomic_data data_array[block_size];
     struct LockFreeNode *next = nullptr;
     std::atomic_bool Mark1 = false;
@@ -97,6 +113,7 @@ public:
     void setMark1(){
         std::atomic_exchange(&Mark1, true);
     }
+    
 
 
     data getDataAt(int pos){

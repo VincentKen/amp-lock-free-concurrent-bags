@@ -54,10 +54,10 @@ bench:
 
 small-bench: $(BUILD_DIR) $(NAME).so $(DATA_DIR)
 	@echo "Running small-bench ..."
-	@python benchmark.py -d $(BENCHMARK_DATA) -p split_50_50 -i 3 -s small -l false -e $(SMALL_BENCH_ELEMENTS)
-	@python benchmark.py -d $(BENCHMARK_DATA) -p split_50_50 -i 3 -s small -l true -e $(SMALL_BENCH_ELEMENTS)
-	@python benchmark.py -d $(BENCHMARK_DATA) -p produce_and_consume -i 3 -s small -l false -e $(SMALL_BENCH_ELEMENTS)
-	@python benchmark.py -d $(BENCHMARK_DATA) -p produce_and_consume -i 3 -s small -l true -e $(SMALL_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p split_50_50 -i 10 -s small -l false -e $(SMALL_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p split_50_50 -i 10 -s small -l true -e $(SMALL_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p produce_and_consume -i 10 -s small -l false -e $(SMALL_BENCH_ELEMENTS)
+	@python benchmark.py -d $(BENCHMARK_DATA) -p produce_and_consume -i 10 -s small -l true -e $(SMALL_BENCH_ELEMENTS)
 
 small-plot: 
 	@echo "Plotting small-bench results ..."

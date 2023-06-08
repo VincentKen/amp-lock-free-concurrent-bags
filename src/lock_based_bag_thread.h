@@ -38,32 +38,27 @@ public:
 	
     data Steal(){
         // if steal_block == nullptr this is the first time trying to steal so we need to set everything up and try to find a linkedlist
-        int rounds = 0;
-        while (steal_block == nullptr) {
-            steal_block = block_list[steal_from_id]->head;
-            steal_from_id = (steal_from_id + 1) % block_list_size;
-            if (rounds >= 50*block_list_size) {
-                return empty_data_val;
-            }
-            rounds++;
-        }
+
+
         int linked_lists_attempted = 0;
         while (true) {
-            if (steal_head == LockBasedNode::block_size) {
-                if (linked_lists_attempted == 50*block_list_size) return empty_data_val; // bag must be empty. TODO implement method from paper
+            if (steal_block == nullptr) {
+                steal_from_id = (steal_from_id + 1) % block_list_size;
+                steal_block = block_list[steal_from_id]->head;
+                linked_lists_attempted++;
+                steal_head = 0;
+                if (linked_lists_attempted == block_list_size) return empty_data_val; 
+            }else if (steal_head >= LockFreeNode::block_size || steal_block->getMark1())
+            {
                 steal_block = steal_block->next;
                 steal_head = 0;
-                if (steal_block == nullptr) { // reached end of of this linked list
-                    steal_from_id = (steal_from_id + 1) % block_list_size;
-                    steal_block = block_list[steal_from_id]->head;
-                    linked_lists_attempted++;
-                }
+            }else{
+                 data item = steal_block->get(steal_head);
+                if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
+                    return item;
+                } else {
+                    steal_head++;
             }
-            data item = steal_block->get(steal_head);
-            if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
-                return item;
-            } else {
-                steal_head++;
             }
         }
     }
@@ -74,6 +69,7 @@ public:
     data TryRemoveAny() {
 		while(true){
             if (thread_head < 0){
+                thread_block->setMark1();
                 if (thread_block->next == nullptr) { // indicates it is last block in the linked list
                     return Steal();
                 }

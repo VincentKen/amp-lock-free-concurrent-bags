@@ -18,6 +18,9 @@ public:
         for (int i = 0; i < threads; i++) {
            bags_array[i] = LockFreeBagThread(i, block_array, threads);
         }
+        #ifdef DEBUG
+                std::cout << "Node array size: " << General_block_size << std::endl;
+        #endif
     }
 
     void Add(int thread_id, int item){

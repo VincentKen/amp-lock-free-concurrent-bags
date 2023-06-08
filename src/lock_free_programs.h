@@ -39,7 +39,7 @@ public:
         #endif
         std::atomic_int consumed = 0;
         omp_set_num_threads(threads);
-        float t = omp_get_wtime();
+        double t = omp_get_wtime();
         #pragma omp parallel
         {
             int id = omp_get_thread_num();
@@ -88,7 +88,7 @@ public:
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
         omp_set_num_threads(threads);
-        float t = omp_get_wtime();
+        double t = omp_get_wtime();
         #pragma omp parallel
         {
             int id = omp_get_thread_num();
@@ -137,7 +137,7 @@ public:
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
         omp_set_num_threads(threads);
-        float t = omp_get_wtime();
+        double t = omp_get_wtime();
         #pragma omp parallel
         {
             int id = omp_get_thread_num();
@@ -189,17 +189,17 @@ public:
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
         omp_set_num_threads(threads);
-        float t = omp_get_wtime();
+        double t = omp_get_wtime();
         #pragma omp parallel
         {
             int id = omp_get_thread_num();
             #pragma omp barrier
             // first let every thread produce
-            for (int e = 0; e < elements; e++) {
+            for (int e = 0; e < e_per_p; e++) {
                 bag.Add(id, e);
             }
             // then consume
-            while (consumed < threads*elements) {
+            while (consumed < elements) {
                 data item = bag.TryRemoveAny(id);
                 if (item != empty_data_val) {
                     consumed++;
@@ -211,8 +211,8 @@ public:
         for (int i = 0; i < threads; i++) {
             add_results(&results, bag.GetCounters(i));
             #ifdef DEBUG
-                // std::cout << "Results from Thread: " << i << std::endl;
-                // print_counters(bag.GetCounters(i));
+                std::cout << "Results from Thread: " << i << std::endl;
+                print_counters(bag.GetCounters(i));
             #endif
         }
         return results;

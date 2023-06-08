@@ -25,7 +25,7 @@ public:
         block_list[id] = new LockFreeLinkedList();
         thread_block = block_list[id]->insert_node();
         thread_head = 0;
-        steal_from_id = 0;
+        steal_from_id = (id + 1) % block_list_size;
         steal_head = 0;
     }
     
@@ -34,6 +34,7 @@ public:
     }
 
     void Add(data item) {
+        //std::cout << id <<" add at " << thread_head << std::endl; 
         if (thread_head == LockFreeNode::block_size || block_list[id]->head == nullptr || thread_block->Mark1) {
             thread_block = block_list[id]->insert_node(item, 0);
             thread_head = 1;
@@ -45,37 +46,29 @@ public:
     }
 	
     data Steal(){
+        //std::cout << id <<" try to steal from " << steal_from_id << std::endl; 
         // if steal_block == nullptr this is the first time trying to steal so we need to set everything up and try to find a linkedlist
-        int rounds = 0;
-        while (steal_block == nullptr) {
-            steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
-            steal_from_id = (steal_from_id + 1) % block_list_size;
-            if (rounds >= 50*block_list_size) {
-                return empty_data_val;
-            }
-            rounds++;
-        }
         int linked_lists_attempted = 0;
         while (true) {
-            counters.attempted_steals++;
-            if (steal_head == LockFreeNode::block_size) {
-                if (linked_lists_attempted == 50*block_list_size) return empty_data_val; // bag must be empty. TODO implement method from paper
+            if (steal_block == nullptr) {
+                steal_from_id = (steal_from_id + 1) % block_list_size;
+                steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
+                linked_lists_attempted++;
+                steal_head = 0;
+                if (linked_lists_attempted == block_list_size) return empty_data_val; 
+            }else if (steal_head >= LockFreeNode::block_size || steal_block->Mark1)
+            {
                 steal_block = steal_block->next;
                 steal_head = 0;
-                if (steal_block == nullptr) { // reached end of of this linked list
-                    steal_from_id = (steal_from_id + 1) % block_list_size;
-                    steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
-                    linked_lists_attempted++;
-                }
+            }else{
+                 data item = steal_block->getDataAt(steal_head);
+                if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
+                    counters.successful_steals++;
+                    return item;
+                } else {
+                    steal_head++;
             }
-            data item = steal_block->getDataAt(steal_head);
-            if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
-                counters.successful_steals++;
-                return item;
-            } else {
-                steal_head++;
             }
-
         }
     }
 
@@ -83,9 +76,11 @@ public:
 
 
     data TryRemoveAny() {
+        //std::cout << id <<" try to remove " << thread_head << std::endl; 
 		while(true){
             counters.attempted_removes++;
             if (thread_head < 0){
+                thread_block->setMark1();
                 if (thread_block->next == nullptr) { // indicates it is last block in the linked list
                     return Steal();
                 }
