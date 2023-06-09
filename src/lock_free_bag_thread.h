@@ -87,6 +87,7 @@ public:
                         data item = steal_block->getDataAt(i);
                         if (item != empty_data_val) {
                             Add(item);
+                            counters.items_recoverd++;
                             //std::cout << id << " found valid data item in list to delete form " << steal_from_id << std::endl;
                         }
                     }

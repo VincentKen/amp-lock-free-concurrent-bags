@@ -10,6 +10,7 @@ struct benchmark_counters {
     int attempted_steals = 0; // gets incremented in the while loop of the steal method, so if a steal is attempted and fails, another attempt is started and this counter will be incremented
     int successful_steals = 0;
     int items_added = 0;
+    int items_recoverd = 0;
 
 };
 
@@ -22,6 +23,7 @@ void print_counters(benchmark_counters counters) {
         << "Attempted Steals: \t" << counters.attempted_steals << std::endl
         << "Successful Steals: \t" << counters.successful_steals << std::endl
         << "Items Added: \t\t" << counters.items_added << std::endl
+        << "Items revoverd: \t\t" << counters.items_recoverd << std::endl
         << std::endl;
 
 }
@@ -41,6 +43,7 @@ void add_results(benchmark_result *res, benchmark_counters others) {
     res->reduced_counters.attempted_steals += others.attempted_steals;
     res->reduced_counters.successful_steals += others.successful_steals;
     res->reduced_counters.items_added += others.items_added;
+    res->reduced_counters.items_recoverd += others.items_recoverd;
 }
 
 extern "C" {

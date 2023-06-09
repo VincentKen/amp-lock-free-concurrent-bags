@@ -13,7 +13,8 @@ class cBenchCounters(ctypes.Structure):
                 ("successful_removes", ctypes.c_int),
                 ("attempted_steals", ctypes.c_int),
                 ("successful_steals", ctypes.c_int),
-                ("items_added", ctypes.c_int)
+                ("items_added", ctypes.c_int),
+                ("items_recoverd", ctypes.c_int)
                ]
 
 class cBenchResult(ctypes.Structure):
@@ -46,6 +47,16 @@ class Benchmark:
         self.data = {}
         self.succ_data = {}
 
+    def printDetaildResultsPerRun(results, x):
+        print("-------- Results " + str(x) + "----------")
+        print("attempted_removes: " + str(results.reduced_counters.attempted_removes))
+        print("items_added: " + str(results.reduced_counters.items_added))
+        print("successful_steals: " + str(results.reduced_counters.successful_steals))
+        print("attempted_steals: " + str(results.reduced_counters.attempted_steals))
+        print("successful_removes: " + str(results.reduced_counters.successful_removes))
+        print("items_recoverd: " + str(results.reduced_counters.items_recoverd))
+        print("-------- END Results ----------")
+
     def run(self):
         '''
         Runs the benchmark with the given parameters. Collects
@@ -64,19 +75,7 @@ class Benchmark:
                 results = self.bench_function( x, *self.parameters )
                 result = results.time*1000
 
-                
-                print("-------- Results " + str(x) + "----------")
-                print("attempted_removes: " + str(results.reduced_counters.attempted_removes))
-                print("items_added: " + str(results.reduced_counters.items_added))
-                print("successful_steals: " + str(results.reduced_counters.successful_steals))
-                print("attempted_steals: " + str(results.reduced_counters.attempted_steals))
-                print("successful_removes: " + str(results.reduced_counters.successful_removes))
-                print("-------- END Results ----------")
-                
-                
-                
-
-
+                #printDetaildResultsPerRun(results, x)
 
                 tmp1.append( result )
                 if not self.lock_based:

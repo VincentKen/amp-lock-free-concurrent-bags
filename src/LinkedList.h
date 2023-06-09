@@ -85,13 +85,35 @@ public:
 
     LockBasedNode * insert_node(data toInsert, int pos) {
         LockBasedNode *new_node = new LockBasedNode();
+        new_node->set(pos, toInsert);
         omp_set_lock(&lock);
         new_node->next = head;
         head = new_node;
-        new_node->set(pos, toInsert);
         omp_unset_lock(&lock);
         
         return head;
+    }
+    bool removeNode(){
+        omp_set_lock(&lock);
+        while (head != nullptr && head->getMark1())
+        {
+            head = head->next;
+        }
+        LockBasedNode *iter = head;
+        while (iter != nullptr)
+        {
+            LockBasedNode *next = iter->next;
+            if (next == nullptr){
+                omp_unset_lock(&lock);
+                return true;
+            }else if(next->getMark1()){
+                iter->next = next->next;
+            }else{
+                iter = next;
+            }
+        }
+        omp_unset_lock(&lock);
+        return head != nullptr;
     }
 
 };
@@ -201,7 +223,7 @@ public:
                 headNode = next;
             }
         }
-        return false;       
+        return head != nullptr;       
     }
 
     void printList(){

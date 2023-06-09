@@ -39,6 +39,8 @@ public:
         #endif
         std::atomic_int consumed = 0;
         omp_set_num_threads(threads);
+        omp_set_schedule(omp_sched_static, 10);
+        
         double t = omp_get_wtime();
         #pragma omp parallel
         {
@@ -89,6 +91,8 @@ public:
         #endif
         bool finished[threads] = {false};
         omp_set_num_threads(threads);
+        omp_set_schedule(omp_sched_static, 10);
+
         double t = omp_get_wtime();
         #pragma omp parallel
         {
@@ -154,7 +158,10 @@ public:
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
         bool finished[threads] = {false};
+        
         omp_set_num_threads(threads);
+        omp_set_schedule(omp_sched_static, 10);
+
         double t = omp_get_wtime();
         #pragma omp parallel
         {
@@ -218,8 +225,12 @@ public:
             std::cout << "Produce and consume with " << threads << " threads and " << elements << " elements" << std::endl;
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
+        
         omp_set_num_threads(threads);
+        omp_set_schedule(omp_sched_static, 10);
+
         double t = omp_get_wtime();
+
         #pragma omp parallel
         {
             int id = omp_get_thread_num();
@@ -236,7 +247,6 @@ public:
                 if (item != empty_data_val) {
                     consumed++;
                 } else {
-                    
                     //std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
                 }
             }

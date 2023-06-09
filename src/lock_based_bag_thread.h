@@ -22,7 +22,7 @@ public:
         block_list[id] = new LockBasedLinkedList();
         thread_block = block_list[id]->insert_node();        
         thread_head = 0;
-        steal_from_id = 0;
+        steal_from_id = (id + 1) % block_list_size;
         steal_head = 0;
     }
 
@@ -44,14 +44,43 @@ public:
         while (true) {
             if (steal_block == nullptr) {
                 steal_from_id = (steal_from_id + 1) % block_list_size;
+                if (steal_from_id == id) {
+                    steal_from_id = (steal_from_id + 1) % block_list_size;
+                }
                 steal_block = block_list[steal_from_id]->head;
                 linked_lists_attempted++;
                 steal_head = 0;
                 if (linked_lists_attempted == block_list_size) return empty_data_val; 
-            }else if (steal_head >= LockFreeNode::block_size || steal_block->getMark1())
+            }else if (steal_block->getMark1())
             {
-                steal_block = steal_block->next;
-                steal_head = 0;
+
+                if(block_list[steal_from_id]->removeNode()){
+                    steal_block = block_list[steal_from_id]->head;
+                    steal_head = 0;
+                }else{
+                    steal_block = nullptr;
+                }
+
+                
+                
+            }else if (steal_head >= LockBasedNode::block_size) {
+                if (steal_block == block_list[steal_from_id]->head){
+                    steal_block = steal_block->next;
+                    steal_head = 0;
+                
+                }else{
+                    steal_block->setMark1();
+                    for (int i = 0; i < LockBasedNode::block_size; i++)
+                    {
+                        data item = steal_block->get(i);
+                        if (item != empty_data_val) {
+                            Add(item);
+                            //std::cout << id << " found valid data item in list to delete form " << steal_from_id << std::endl;
+                        }
+                    }
+                    
+                    steal_head = 0;
+                }
             }else{
                  data item = steal_block->get(steal_head);
                 if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
