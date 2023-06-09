@@ -53,8 +53,6 @@ public:
                     data item = bag.TryRemoveAny(id);
                     if (item != empty_data_val) {
                         consumed++;
-                    }else{
-                        usleep(1);
                     }
                 }
             }
@@ -89,6 +87,7 @@ public:
             std::cout << "Single consumer with " << threads << " threads and " << elements << " elements" << std::endl;
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
+        bool finished[threads] = {false};
         omp_set_num_threads(threads);
         double t = omp_get_wtime();
         #pragma omp parallel
@@ -101,7 +100,18 @@ public:
                     if (item != empty_data_val) {
                         consumed++;
                     }else{
-                        usleep(1);
+                        #ifdef DEBUG
+                            
+                            int finished_count = 0;
+                            for (int i = 0; i < threads; i++) {
+                                if (finished[i]) finished_count++;
+                            }
+                            if (finished_count == threads/2) {
+                                std::cout << "All producers are finished ------ Break" << std::endl;
+                                bag.printLists();
+                                break;
+                            }
+                        #endif
                     }
                 }
                 
@@ -109,6 +119,7 @@ public:
                 for (int e = 0; e < e_per_p; e++) {
                     bag.Add(id, e);
                 }
+                finished[id] = true;
             }
         }
         results.time = omp_get_wtime() - t;
@@ -132,7 +143,9 @@ public:
         if (threads % 2 != 0) threads--; // make sure there is an even amount of threads
         if (threads < 2) return results;
 
+        //std::cout << "try to init" << std::endl;
         LockFreeBag bag(threads);
+        //std::cout << "init done" << std::endl;
         std::atomic_int consumed = 0;
         int e_per_p = elements/(threads/2); // amount of elements each producer has to produce
         elements = e_per_p*(threads/2); // new total amount incase the previous amount was not evenly divisable between the producers
@@ -152,22 +165,22 @@ public:
                     bag.Add(id, e);
                 }
                 finished[id] = true;
-                std::cout << "Thread " << id << " finished producing " << e_per_p << " elements" << std::endl;
+                //std::cout << "Thread " << id << " finished producing " << e_per_p << " elements" << std::endl;
             } else { // consume
                 while (consumed < elements) {
                     data item = bag.TryRemoveAny(id);
                     if (item != empty_data_val) {
                         consumed++;
                     } else {
-                        usleep(1);
-                        std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
-                        int finished_count = 0;
-                        for (int i = 0; i < threads; i++) {
-                            if (finished[i]) finished_count++;
-                        }
-                        if (finished_count == threads/2) {
-                            std::cout << "All producers are finished" << std::endl;
-                        }
+                        
+                        //std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
+                        //int finished_count = 0;
+                        //for (int i = 0; i < threads; i++) {
+                        //    if (finished[i]) finished_count++;
+                        //}
+                        //if (finished_count == threads/2) {
+                            //std::cout << "All producers are finished" << std::endl;
+                        //}
                     }
                 }
             }
@@ -214,16 +227,17 @@ public:
             // first let every thread produce
             for (int e = 0; e < e_per_p; e++) {
                 bag.Add(id, e);
-                std::cout << "Thread " << id << " finished producing " << e_per_p << " elements" << std::endl;
+                
             }
+            //std::cout << "Thread " << id << " finished producing " << e_per_p << " elements" << std::endl;
             // then consume
             while (consumed < elements) {
                 data item = bag.TryRemoveAny(id);
                 if (item != empty_data_val) {
                     consumed++;
                 } else {
-                    usleep(1);
-                    std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
+                    
+                    //std::cout << "Thread " << id << " failed to remove. Total consumed: " << consumed.load(WEAK_ORDER) << " elements" << std::endl;
                 }
             }
         }

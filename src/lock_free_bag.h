@@ -35,6 +35,13 @@ public:
         return bags_array[thread_id].GetCounters();
     }
 
-
+    void printLists(){
+        for (int  i = 0; i < threads; i++)
+        {
+            std::cout << "printing list " << i << std::endl;
+            block_array[i]->printList();
+        }
+        
+    }
 
 };

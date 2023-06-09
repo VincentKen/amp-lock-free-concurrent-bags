@@ -33,33 +33,18 @@ public:
         return counters;
     }
 
-    void Add(data item) {
-        //std::cout << id <<" add at " << thread_head << std::endl; 
-        if (thread_head == LockFreeNode::block_size || block_list[id]->head == nullptr) {
+    void Add(data item) { 
+        if (thread_head >= LockFreeNode::block_size || block_list[id]->head == nullptr || thread_block->Mark1) {
+            //std::cout << id <<" add new node with element " << thread_head << std::endl; 
             thread_block = block_list[id]->insert_node(item, 0);
             thread_head = 1;
-        } else {
-            if (thread_block->set_adding()) {
-                thread_block->data_array[thread_head].store(item, WEAK_ORDER);
-                thread_block->set_none();
-            } else {
-                std::cout << "Failed to set adding, inserting a new node for item " << item << std::endl;
-                thread_block = block_list[id]->insert_node(item, 0);
-                thread_head = 1;
-            }
-        }
-        // if (thread_head == LockFreeNode::block_size || block_list[id]->head == nullptr || thread_block->Mark1) {
-        //     thread_block = block_list[id]->insert_node(item, 0);
-        //     thread_head = 1;
-        // }else{
-        //     thread_block->data_array[thread_head].store(item, WEAK_ORDER);
-        //     thread_head++;
-        //     if(thread_block->Mark1){
-        //         thread_block = block_list[id]->insert_node(item, 0);
-        //         thread_head = 1;
-        //     }
+        }else{
+            //std::cout << id <<" add new element " << thread_head << std::endl;
+            thread_block->data_array[thread_head].store(item, WEAK_ORDER);
+            thread_head++;
             
-        // }
+            
+        }
         counters.items_added++;
     }
 	
@@ -67,6 +52,7 @@ public:
         //std::cout << id <<" try to steal from " << steal_from_id << std::endl; 
         // if steal_block == nullptr this is the first time trying to steal so we need to set everything up and try to find a linkedlist
         int linked_lists_attempted = 0;
+        counters.attempted_steals++;
         while (true) {
             if (steal_block == nullptr) {
                 steal_from_id = (steal_from_id + 1) % block_list_size;
@@ -77,26 +63,41 @@ public:
                 linked_lists_attempted++;
                 steal_head = 0;
                 if (linked_lists_attempted == block_list_size) return empty_data_val; 
-            }else if (steal_block->is_deleted())
+            }else if (steal_block->Mark1)
             {
-                //std::cout << "Delete stealing " << id << " from " << steal_from_id << std::endl;
+
                 if(block_list[steal_from_id]->deleteNode()){
-                    //std::cout << "Delete stealing " << id << " from " << steal_from_id << " succsessfull" << std::endl;
                     steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
                     steal_head = 0;
                 }else{
-                    //std::cout << "Delete stealing " << id << " from " << steal_from_id << " failed" << std::endl;
-                    //std::cout << id << " Going to next list. Attempts so far: " << linked_lists_attempted << "/" << block_list_size << std::endl;
                     steal_block = nullptr;
                 }
+
                 
                 
             }else if (steal_head >= LockFreeNode::block_size) {
-                if (!steal_block->set_deleting()) {
+                if (steal_block == block_list[steal_from_id]->head.load(WEAK_ORDER)){
+                    steal_block = steal_block->next;
+                    steal_head = 0;
+                
+                }else{
+                    steal_block->setMark1();
+                    for (int i = 0; i < LockFreeNode::block_size; i++)
+                    {
+                        data item = steal_block->getDataAt(i);
+                        if (item != empty_data_val) {
+                            Add(item);
+                            //std::cout << id << " found valid data item in list to delete form " << steal_from_id << std::endl;
+                        }
+                    }
+                    
                     steal_head = 0;
                 }
+                   
+               
             
             }else{
+                
                  data item = steal_block->getDataAt(steal_head);
                 if (item != empty_data_val) { // the CAS already happens in getDataAt so no need to that here, we only need to check if it was successful by comparing with empty_data_val
                     counters.successful_steals++;
@@ -114,30 +115,29 @@ public:
 
     data TryRemoveAny() {
         //std::cout << id <<" try to remove " << thread_head << std::endl; 
+        counters.attempted_removes++;
 		while(true){
-            counters.attempted_removes++;
-
-            if (thread_head < 0 && thread_block->is_deleted()){
+           
+            
+            if (thread_block == nullptr || thread_head < 0 || thread_block->Mark1){
                 return Steal();
             }
 
             thread_head--;
             if (thread_head < 0){
-                thread_block->set_deleting();
+                thread_block->setMark1();
             }
 
-            if (thread_block->is_deleted())
+            if (thread_block->Mark1)
             {
-                //std::cout << "Delete " << id << " from it selve" << std::endl;
-                // remove unsuccessfull & last node 
-               if (!block_list[id]->deleteNode() && block_list[id]->head.load(std::memory_order_relaxed)->next == nullptr){
-                    //std::cout << " Thread " << id << " failed to delete from itself" << std::endl;
-                    return Steal();
-                }else{
+                if (block_list[id]->deleteNode()){
+                    //the list is not empty
                     thread_head = LockFreeNode::block_size -1;
                     thread_block = block_list[id]->head.load(std::memory_order_relaxed);
-                }
-                     
+                }else{
+                    //the local bag is empty, try to steal
+                    return Steal();
+                }                     
             }
 
             data item = thread_block->getDataAt(thread_head);

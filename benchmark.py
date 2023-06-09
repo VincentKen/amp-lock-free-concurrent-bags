@@ -63,6 +63,21 @@ class Benchmark:
             for r in range(0, self.repetitions_per_point):
                 results = self.bench_function( x, *self.parameters )
                 result = results.time*1000
+
+                
+                print("-------- Results " + str(x) + "----------")
+                print("attempted_removes: " + str(results.reduced_counters.attempted_removes))
+                print("items_added: " + str(results.reduced_counters.items_added))
+                print("successful_steals: " + str(results.reduced_counters.successful_steals))
+                print("attempted_steals: " + str(results.reduced_counters.attempted_steals))
+                print("successful_removes: " + str(results.reduced_counters.successful_removes))
+                print("-------- END Results ----------")
+                
+                
+                
+
+
+
                 tmp1.append( result )
                 if not self.lock_based:
                     succ = results.reduced_counters.successful_removes+results.reduced_counters.successful_steals+results.reduced_counters.items_added
@@ -72,6 +87,7 @@ class Benchmark:
         t = datetime.datetime.now()-t
         print(f"Benchmark {self.name} took {t}")
             
+       
 
     def write_avg_data(self):
         '''
@@ -100,7 +116,7 @@ class Benchmark:
                 datafile.write(f"x datapoint\n")
                 for x, box in self.succ_data.items():
                     datafile.write(f"{x} {sum(box)/len(box)}\n")
-
+        
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "d:p:i:s:l:e:")
