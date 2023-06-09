@@ -51,9 +51,12 @@ public:
                 linked_lists_attempted++;
                 steal_head = 0;
                 if (linked_lists_attempted == block_list_size) return empty_data_val; 
+
+                // test if the found block is marked
             }else if (steal_block->getMark1())
             {
-
+                // try to remove the marked node, by doing so, try to remove every marked node in that linked list
+                // based on the returned value we know if ther is still a node in the list
                 if(block_list[steal_from_id]->removeNode()){
                     steal_block = block_list[steal_from_id]->head;
                     steal_head = 0;
@@ -62,7 +65,8 @@ public:
                 }
 
                 
-                
+                // if we iterated throw one node, we test if it is the head of the list
+                // if so we continue to the next, otherwise we will mark it
             }else if (steal_head >= LockBasedNode::block_size) {
                 if (steal_block == block_list[steal_from_id]->head){
                     steal_block = steal_block->next;
@@ -70,6 +74,7 @@ public:
                 
                 }else{
                     steal_block->setMark1();
+                    //if we mark a block, we musst be sure that ther is no further element in the block
                     for (int i = 0; i < LockBasedNode::block_size; i++)
                     {
                         data item = steal_block->get(i);

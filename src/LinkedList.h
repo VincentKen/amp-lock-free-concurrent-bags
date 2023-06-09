@@ -9,7 +9,7 @@
 #include "data_object.h"
 #include <atomic>
 
-static const int General_block_size = 32;
+static const int General_block_size = 64;
 
 class LockBasedNode
 {
