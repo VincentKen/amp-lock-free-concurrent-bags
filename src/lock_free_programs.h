@@ -242,8 +242,10 @@ public:
             }
             //std::cout << "Thread " << id << " finished producing " << e_per_p << " elements" << std::endl;
             // then consume
-            while (consumed < elements) {
+            int cnt = 0;
+            while (consumed < elements && cnt < elements) {
                 data item = bag.TryRemoveAny(id);
+                cnt ++;
                 if (item != empty_data_val) {
                     consumed++;
                 } else {

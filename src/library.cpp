@@ -66,7 +66,7 @@ int main(int argc, char * argv[]) {
     (void) argv;
     
     int threads = 2;
-    int elements = 10000;
+    int elements = 100;
     // benchmark_result results[4];
     // results[0] = small_bench(threads, SINGLE_PRODUCER, elements);
     // results[1] = small_bench(threads, SINGLE_CONSUMER, elements);

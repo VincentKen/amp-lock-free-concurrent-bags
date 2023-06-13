@@ -4,6 +4,9 @@ import datetime
 import sys
 import getopt
 
+from matplotlib import pyplot as plt
+
+
 class cBenchCounters(ctypes.Structure):
     '''
     This has to match the returned struct in library.c
@@ -69,15 +72,12 @@ class Benchmark:
         tstr = t.strftime("%Y-%m-%dT%H:%M:%S")
         print(f"Starting Benchmark {self.name} run at {tstr}")
         self.now = t
-        
         for x in self.xrange:
             tmp1 = [] # time per benchmark
             tmp2 = [] # successful operations per second
             for r in range(0, self.repetitions_per_point):
                 results = self.bench_function( x, *self.parameters )
                 result = results.time*1000
-
-                self.printDetaildResultsPerRun(results, x)
 
                 tmp1.append( result )
                 if not self.lock_based:
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "d:p:i:s:l:e:")
     d = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S") # Directory in /data where to store the results of the benchmark
     p = "split_50_50" # The name of the program to run
-    i = 3 # Amount of iterations
+    i = 30 # Amount of iterations
     s = "small" # Size of benchmark, either small or big. Determines whether benchmark will run on threads 2-16 or 2-128
     l = False # Lock based. Determines whether to run the lock based version of the selected program
     e = 1000000 # Amount of elements to pass on to the program
@@ -134,47 +134,49 @@ if __name__ == "__main__":
         "split_50_50"           : 2,
         "produce_and_consume"   : 3
     }
-
-    for opt, arg in opts:
-        if opt == "-d":
-            d = arg
-        if opt == "-p":
-            p = arg
-        if opt == "-i":
-            i = int(arg)
-        if opt == "-s":
-            s = arg.lower()
-        if opt == "-l":
-            if arg.lower() == "true":
-                l = True
-            if arg.lower() == "false":
-                l = False
-        if opt == "-e":
-            e = int(e)
     
-    name = p
-    if l:
-        name = name + "_lock_based"
-    small_threads = [2, 4, 8]
-    large_threads = small_threads + [16, 32, 64, 128]
-
-    threads = small_threads
-    if s == "large":
-        threads = large_threads
-
     basedir = os.path.dirname(os.path.abspath(__file__))
     binary = ctypes.CDLL( f"{basedir}/build/library.so" )
-    # Set the result type for each benchmark function
-    binary.small_bench.restype = cBenchResult
-    binary.small_lock_based_bench.restype = cLockBenchResult
-
     datadir = basedir + "/data/" + d
-    print("-----------------------------------------------------------------------------------")
-    print(f"Starting benchmark {name} with {e} elements, {i} iterations, and threads: {threads}")
-    print(f"Data will be saved in {datadir}")
 
-    benchmark = Benchmark(binary.small_bench, (programs[p], e), i, threads, datadir, name, l)
-    benchmark.run()
-    benchmark.write_avg_data()
-    print("-----------------------------------------------------------------------------------")
+    elements = [1000, 10000, 100000]
+    threads = [1,2, 4, 8]
+    names = ["Bensh2_", "Bensh2_lockBased_"]
+    binary.small_bench.restype = cBenchResult
+    p = 2
 
+    plt.rcParams["figure.figsize"] = [7.50, 3.50]
+    plt.rcParams["figure.autolayout"] = True
+    line = []
+    result =[] * len(threads)
+    for i in threads:
+        result.append([])
+   
+    name = "test"
+    #for name in names:
+    for e in elements:
+
+        print("-----------------------------------------------------------------------------------")
+        print(f"Starting benchmark2 with {e} elements, {i} iterations, and threads: {threads}")
+        print(f"Data will be saved in {datadir}")
+
+        benchmark = Benchmark(binary.small_bench, (3, e), i, threads, datadir, name+str(e), l)
+        benchmark.run()
+        benchmark.write_avg_data()
+        print("-----------------------------------------------------------------------------------")
+        averages = []
+        for x, box in benchmark.data.items():
+            averages.append(sum(box)/len(box))
+
+        for i in range(len(threads)):
+            result[i].append(averages[i])
+        print(result)
+
+            #print(averages)
+            #lineName = name +str(e)
+            #line.append(plt.plot(threads,averages, label=lineName))
+
+    for i in range(len(threads)):
+        line.append(plt.plot(elements, result[i], label=str(threads[i])))
+    leg = plt.legend(loc='upper center')
+    plt.show()

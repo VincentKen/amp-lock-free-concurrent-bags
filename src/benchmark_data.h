@@ -11,6 +11,7 @@ struct benchmark_counters {
     int successful_steals = 0;
     int items_added = 0;
     int items_recoverd = 0;
+    int atempts_to_delete = 0;
 
 };
 
@@ -24,6 +25,7 @@ void print_counters(benchmark_counters counters) {
         << "Successful Steals: \t" << counters.successful_steals << std::endl
         << "Items Added: \t\t" << counters.items_added << std::endl
         << "Items revoverd: \t\t" << counters.items_recoverd << std::endl
+         << "atempts_to_delete: \t\t" << counters.atempts_to_delete << std::endl
         << std::endl;
 
 }
@@ -44,6 +46,7 @@ void add_results(benchmark_result *res, benchmark_counters others) {
     res->reduced_counters.successful_steals += others.successful_steals;
     res->reduced_counters.items_added += others.items_added;
     res->reduced_counters.items_recoverd += others.items_recoverd;
+    res->reduced_counters.atempts_to_delete += others.atempts_to_delete;
 }
 
 extern "C" {

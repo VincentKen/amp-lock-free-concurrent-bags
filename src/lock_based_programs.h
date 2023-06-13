@@ -114,11 +114,12 @@ public:
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
         omp_set_num_threads(threads);
+        omp_set_schedule(omp_sched_static, 10);
         double t = omp_get_wtime();
         #pragma omp parallel
         {
             int id = omp_get_thread_num();
-            #pragma omp barrier
+            //#pragma omp barrier
             if (id % 2 == 0) { // produce
                 for (int e = 0; e < e_per_p; e++) {
                     bag.Add(id, e*10000 + id);
@@ -157,11 +158,12 @@ public:
             std::cout << "Each thread will produce " << e_per_p << " elements" << std::endl << std::endl;
         #endif
         omp_set_num_threads(threads);
+        omp_set_schedule(omp_sched_static, 10);
         double t = omp_get_wtime();
         #pragma omp parallel
         {
             int id = omp_get_thread_num();
-            #pragma omp barrier
+            //#pragma omp barrier
             // first let every thread produce
             for (int e = 0; e < e_per_p; e++) {
                 bag.Add(id, e);

@@ -8,6 +8,7 @@ private:
     int block_list_size;
     LockFreeNode* thread_block; // threadBlock from the algorithm from the paper. Points to current block containing the array the thread is working on
     LockFreeNode* steal_block = nullptr;  // stealBlock from the algorithm. Points to the current block containing the array this thread is stealing from
+    LockFreeNode *stealPre = nullptr;
     int thread_head; // threadHead from the algorithm. Index of the element in the array of the block where this thread will place data next
     int steal_head; // stealHead from the algorithm. Index of the element in the array of the stealBlock which this thread will steal next
     int id; // thread_id
@@ -55,6 +56,7 @@ public:
         counters.attempted_steals++;
         while (true) {
             if (steal_block == nullptr) {
+                stealPre = nullptr; // reset the stealPre if movig to other list
                 steal_from_id = (steal_from_id + 1) % block_list_size;
                 if (steal_from_id == id) {
                     steal_from_id = (steal_from_id + 1) % block_list_size;
@@ -69,18 +71,29 @@ public:
             {
                 // try to remove the marked node, by doing so, try to remove every marked node in that linked list
                 // based on the returned value we know if ther is still a node in the list
+                if(stealPre != nullptr){
+                    counters.atempts_to_delete++;
+                    steal_block = stealPre->deleteNext(steal_block);
+                    steal_head = 0;
+                    stealPre = nullptr;
+                }else{
+                    steal_block = nullptr;
+                }
+                
+                /*
                 if(block_list[steal_from_id]->deleteNode()){
                     steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
                     steal_head = 0;
                 }else{
                     steal_block = nullptr;
                 }
-
+                */
                 
                 // if we iterated throw one node, we test if it is the head of the list
                 // if so we continue to the next, otherwise we will mark it
             }else if (steal_head >= LockFreeNode::block_size) {
                 if (steal_block == block_list[steal_from_id]->head.load(WEAK_ORDER)){
+                    stealPre = steal_block;
                     steal_block = steal_block->next;
                     steal_head = 0;
                 
@@ -136,7 +149,8 @@ public:
 
             if (thread_block->Mark1)
             {
-                if (block_list[id]->deleteNode()){
+                counters.atempts_to_delete++;
+                if (block_list[id]->deleteHeadNode()){
                     //the list is not empty
                     thread_head = LockFreeNode::block_size -1;
                     thread_block = block_list[id]->head.load(std::memory_order_relaxed);

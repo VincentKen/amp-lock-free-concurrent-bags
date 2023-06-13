@@ -9,7 +9,7 @@
 #include "data_object.h"
 #include <atomic>
 
-static const int General_block_size = 64;
+static const int General_block_size = 16;
 
 class LockBasedNode
 {
@@ -66,13 +66,13 @@ public:
         omp_init_lock(&lock);
     }
 
-    LockBasedNode* head = nullptr;
+    LockBasedNode *head = nullptr;
     
 
     /**
      * Inserts new node to the end of the list and returns the pointer to that node 
      */
-     LockBasedNode * insert_node() {
+     LockBasedNode *insert_node() {
         LockBasedNode *new_node = new LockBasedNode();
         omp_set_lock(&lock);
         new_node->next = head;
@@ -83,7 +83,7 @@ public:
 
     
 
-    LockBasedNode * insert_node(data toInsert, int pos) {
+    LockBasedNode *insert_node(data toInsert, int pos) {
         LockBasedNode *new_node = new LockBasedNode();
         new_node->set(pos, toInsert);
         omp_set_lock(&lock);
@@ -139,7 +139,14 @@ public:
          std::atomic_exchange(&Mark1, true);
     }
     
-
+    LockFreeNode *deleteNext(LockFreeNode *toDelete){
+        LockFreeNode *toReplaceWith = toDelete->next.load(WEAK_ORDER);
+        if(std::atomic_compare_exchange_weak(&next, &toDelete, toReplaceWith)){
+            return toReplaceWith;
+        }else{
+            return nullptr;
+        }
+    }
 
     data getDataAt(int pos){
         data temp = data_array[pos];
@@ -201,27 +208,12 @@ public:
     
 
     // returns true if the list still has a node avter deleting
-    bool deleteNode(){
-        LockFreeNode *headNode = head;
+    bool deleteHeadNode(){
+        LockFreeNode *headNode = head.load(WEAK_ORDER);
         while (headNode != nullptr && headNode->Mark1)
         {
-            std::atomic_compare_exchange_weak(&head, &headNode, headNode->next);
-            headNode = head;
-        }
-
-        
-        while (headNode != nullptr)
-        {
-            LockFreeNode *next = headNode->next;
-            if (next == nullptr){
-                return true;
-
-            }else if(next->Mark1){
-                std::atomic_compare_exchange_weak(&headNode->next, &next, next->next);
-
-            }else{
-                headNode = next;
-            }
+            std::atomic_compare_exchange_weak(&head, &headNode, headNode->next.load(WEAK_ORDER));
+            headNode = head.load(WEAK_ORDER);
         }
         return head != nullptr;       
     }
