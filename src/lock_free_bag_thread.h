@@ -80,17 +80,9 @@ public:
                     steal_block = nullptr;
                 }
                 
-                /*
-                if(block_list[steal_from_id]->deleteNode()){
-                    steal_block = block_list[steal_from_id]->head.load(WEAK_ORDER);
-                    steal_head = 0;
-                }else{
-                    steal_block = nullptr;
-                }
-                */
                 
                 // if we iterated throw one node, we test if it is the head of the list
-                // if so we continue to the next, otherwise we will mark it
+                // if so, we continue to the next, otherwise we will mark it
             }else if (steal_head >= LockFreeNode::block_size) {
                 if (steal_block == block_list[steal_from_id]->head.load(WEAK_ORDER)){
                     stealPre = steal_block;
@@ -98,7 +90,7 @@ public:
                     steal_head = 0;
                 
                 }else{
-                    //if we mark a block, we musst be sure that ther is no further element in the block
+                    //if we mark a block, we must be sure that there is no further element in the block
                     steal_block->setMark1();
                     for (int i = 0; i < LockFreeNode::block_size; i++)
                     {
@@ -106,7 +98,7 @@ public:
                         if (item != empty_data_val) {
                             Add(item);
                             counters.items_recoverd++;
-                            //std::cout << id << " found valid data item in list to delete form " << steal_from_id << std::endl;
+                            //std::cout << id << " found valid data item in the list to delete form " << steal_from_id << std::endl;
                         }
                     }
                     
